@@ -14,7 +14,7 @@ Everything runs **in your browser**. Your PDFs are never uploaded anywhere. By d
 - **Themes** — Light, Mint, Green, Ocean Blue, Dark.
 - **Durable saves** — your in-progress test survives a refresh. Export/Import a whole test as a `.json` file to move it between devices or versions.
 - **AI tutoring** — after a block, get targeted, high-yield feedback based on your answers, timing, what you highlighted, and what you crossed out (uses your own Anthropic API key, entered in Settings).
-- **Accounts (optional)** — sign up / log in to sync saved tests to your account across devices. One designated admin account can see every account's saved tests. Off by default; see [Set up accounts](#set-up-accounts-optional) below.
+- **Accounts (optional)** — sign up / log in to sync every saved test, and every in-progress answer, highlight, and cross-out, to your account in real time so you can pick up on another device. One designated admin account can see every account's saved tests. Off by default; see [Set up accounts](#set-up-accounts-optional) below.
 
 ## Run it locally
 
@@ -47,11 +47,14 @@ This needs a free [Firebase](https://firebase.google.com) project (Google's back
            (resource.data.uid == request.auth.uid || request.auth.token.email == 'chase.g98@icloud.com');
          allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
        }
+       match /liveState/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
      }
    }
    ```
 
-   This keeps every user's saved tests private to them, except the admin email, which can read (and moderate) everyone's.
+   `sessions` holds finished tests: private to their owner, except the admin email, which can read (and moderate) everyone's. `liveState` holds each account's *in-progress* test (every highlight, answer, and cross-out, saved continuously) so it can resume on another device — private to the owner only, one document per account.
 
 5. In the left sidebar: **Project settings (gear icon) → General → Your apps → Add app → Web (`</>`)**. Register the app (no need for Firebase Hosting). Copy the `firebaseConfig` object it shows you.
 6. Open `index.html`, find the block that starts with `const firebaseConfig={` (search for `PASTE_YOUR`), and replace the six placeholder strings with the real values from step 5.

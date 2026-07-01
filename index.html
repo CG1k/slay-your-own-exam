@@ -603,6 +603,42 @@ function syncCloudSessions(){
     if(state.screen==='history')renderHistory();
   }).catch(e=>console.warn('Cloud sync failed:',e));
 }
+/* live in-progress test (every highlight/answer/cross-out), one doc per account, overwritten continuously */
+function liveDocRef(){return fbDb.collection('liveState').doc(curUser.uid);}
+let _liveCloudTimer=null;
+function cloudSaveLiveSoon(){ // debounced — used after each small action so we don't hammer Firestore
+  if(!fbEnabled||!curUser)return;
+  clearTimeout(_liveCloudTimer);_liveCloudTimer=setTimeout(cloudSaveLiveNow,1200);
+}
+function cloudSaveLiveNow(){ // immediate — used right before the tab goes away
+  if(!fbEnabled||!curUser)return;
+  clearTimeout(_liveCloudTimer);
+  if(!state.questions.length||(state.screen!=='exam'&&state.screen!=='review'&&state.screen!=='results')){
+    liveDocRef().delete().catch(()=>{});return;
+  }
+  bankTimer();
+  const qNoImg=state.questions.map(q=>{const c=Object.assign({},q);delete c.images;return c;});
+  const payload={pdfName:state.pdfName,questions:qNoImg,options:collectOptions(),
+    screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,attempts:state.attempts,
+    startedAt:state.startedAt,reviewMode:state.reviewMode,savedAt:Date.now()};
+  liveDocRef().set(payload).catch(e=>console.warn('Cloud live-save failed:',e));
+}
+function resumeFromCloudIfAny(){ // offers to pick up an in-progress test left on another device
+  if(!fbEnabled||!curUser)return;
+  if(localStorage.getItem(LS.liveQ))return; // this device already has something of its own to resume
+  liveDocRef().get().then(doc=>{
+    const d=doc.data();
+    if(!d||!Array.isArray(d.questions)||!d.questions.length)return;
+    if(!confirm('Resume the in-progress test you left on another device?'))return;
+    state.questions=d.questions.map((qq,i)=>Object.assign({},qq,{id:qq.id||uid(),idx:i,images:[]}));
+    state.pdfName=d.pdfName||'';applyOptions(d.options);
+    state.order=d.order||[];state.attempts=d.attempts||[];state.cur=Math.min(d.cur||0,(d.order||[]).length-1);
+    state.mode=d.mode||'test';state.startedAt=d.startedAt||Date.now();state.reviewMode=!!d.reviewMode;
+    saveLiveQ();saveLiveState();
+    if(d.screen==='exam'&&d.order&&d.order.length){showScreen('exam');loadQuestion(state.cur);toast('Resumed your test from another device');}
+    else{renderReview();showScreen('review');toast('Resumed your questions from another device');}
+  }).catch(e=>console.warn('Cloud resume check failed:',e));
+}
 function renderAuthUI(){
   const btn=$('#authBtn'),adminBtn=$('#navAdmin');
   if(!fbEnabled){btn.textContent='Accounts unavailable';btn.title='Accounts are not configured for this site yet.';adminBtn.classList.add('hidden');return;}
@@ -634,7 +670,7 @@ $('#authBtn').onclick=()=>{
   openAuthModal();
 };
 if(fbEnabled){
-  fbAuth.onAuthStateChanged(u=>{curUser=u;renderAuthUI();if(u)syncCloudSessions();});
+  fbAuth.onAuthStateChanged(u=>{curUser=u;renderAuthUI();if(u){syncCloudSessions();resumeFromCloudIfAny();}});
 }
 renderAuthUI();
 function renderAdmin(){
@@ -718,6 +754,7 @@ function saveLiveQ(){ // questions WITHOUT image bytes — small, so it (almost)
     try{localStorage.setItem(LS.liveImg,JSON.stringify(state.questions.map(q=>q.images||[])));}
     catch(e){try{localStorage.removeItem(LS.liveImg);}catch(_){}}
   }else{try{localStorage.removeItem(LS.liveImg);}catch(_){}}
+  cloudSaveLiveSoon();
 }
 function saveLiveState(){ // the small, fast-changing exam/progress state — written on every action
   if(!state.questions.length)return;
@@ -727,10 +764,14 @@ function saveLiveState(){ // the small, fast-changing exam/progress state — wr
     attempts:state.attempts,startedAt:state.startedAt,reviewMode:state.reviewMode,
     session:state.curSession?state.curSession.id:null,savedAt:Date.now()};
   try{localStorage.setItem(LS.live,JSON.stringify(snap));}catch(e){}
+  cloudSaveLiveSoon();
 }
 let _liveQTimer=null;
 function saveLiveQSoon(){clearTimeout(_liveQTimer);_liveQTimer=setTimeout(saveLiveQ,1200);} // debounce review edits
-function clearLive(){try{localStorage.removeItem(LS.live);localStorage.removeItem(LS.liveQ);localStorage.removeItem(LS.liveImg);}catch(e){}}
+function clearLive(){
+  try{localStorage.removeItem(LS.live);localStorage.removeItem(LS.liveQ);localStorage.removeItem(LS.liveImg);}catch(e){}
+  if(fbEnabled&&curUser)liveDocRef().delete().catch(()=>{});
+}
 function tryResume(){
   let q=null,s=null;
   try{q=JSON.parse(localStorage.getItem(LS.liveQ)||'null');}catch(e){}
@@ -753,7 +794,10 @@ function tryResume(){
   }
   renderReview();showScreen('review');toast('Restored your extracted questions — pick up where you left off');return true;
 }
-window.addEventListener('beforeunload',()=>{ if(state.screen==='exam')saveLiveState(); });
+function flushLiveNow(){ saveLiveState(); cloudSaveLiveNow(); } // called right before the tab disappears
+window.addEventListener('beforeunload',flushLiveNow);
+window.addEventListener('pagehide',flushLiveNow);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')flushLiveNow(); });
 
 /* =========================================================================
    1. PDF UPLOAD + TEXT EXTRACTION
