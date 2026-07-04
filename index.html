@@ -2006,7 +2006,20 @@ function fAway(){
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')fAway(); else fStopAlarm(false); });
 window.addEventListener('blur',fAway);
 window.addEventListener('focus',()=>{clearTimeout(_fBlurT);fStopAlarm(false);});
-window.addEventListener('beforeunload',e=>{ if(fShouldGuard()){e.preventDefault();e.returnValue='';} });
+/* Master lock lets you move BETWEEN pages of this site (Flashcards, Study Buddy) without
+   a leave-this-site warning — the lock follows you there via localStorage. A test-time
+   Focus Lock still warns on any unload, so a mid-test wander is never silent. */
+let _fSiteNavAt=0;
+document.addEventListener('click',e=>{
+  const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;
+  try{if(new URL(a.href,location.href).origin===location.origin)_fSiteNavAt=Date.now();}catch(_){}
+},true);
+window.addEventListener('beforeunload',e=>{
+  if(!fShouldGuard())return;
+  const testLock=focusArmed&&state.screen==='exam'&&!state.reviewMode;
+  if(!testLock&&masterLock&&Date.now()-_fSiteNavAt<1500)return; // in-site navigation
+  e.preventDefault();e.returnValue='';
+});
 /* speak-to-unlock */
 function normPhrase(s){return String(s||'').toLowerCase().replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim();}
 function phraseMatches(heard){
