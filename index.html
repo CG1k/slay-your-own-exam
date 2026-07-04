@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://cdnjs.cloudflare.com https://api.anthropic.com https://*.googleapis.com wss://*.firebaseio.com; media-src 'self'; worker-src blob: https://cdnjs.cloudflare.com; child-src blob:; frame-src https://slayyourexam.firebaseapp.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>Slay Your Own Exam — practice from your own PDFs</title>
 <meta name="description" content="Turn your own question-bank PDF into a realistic, UWorld-style board exam — verbatim questions, a 90-second timer, highlighting, full lab values, and AI tutoring on what you missed.">
 <meta name="theme-color" content="#1FBFAB">
@@ -133,8 +135,11 @@ a{color:var(--accent-d)}
 .stem p:last-child{margin-bottom:0}
 .stem .hl{background:var(--mark);border-radius:2px;padding:0 1px;box-decoration-break:clone}
 .stem .st{text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--bad);opacity:.7}
+.labblock{margin:16px 0}
+.labhead{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-d);margin:0 0 6px}
 .labwrap{background:var(--soft);border:1px solid var(--line);border-left:3px solid var(--accent);
   border-radius:8px;padding:10px 16px;margin:4px 0 15px;display:inline-block;min-width:min(340px,100%);max-width:100%;overflow-x:auto}
+.labblock .labwrap{margin:0;display:block}
 .labtable{border-collapse:collapse;font-size:14.5px;width:100%}
 .labtable td{padding:4px 22px 4px 0;vertical-align:baseline;white-space:nowrap}
 .labtable td:last-child{padding-right:0}
@@ -272,6 +277,8 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
 @media(max-width:560px){.brand .sub2{display:none}}
 .iconbtn{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 13px;font-weight:500;font-size:13px;color:var(--ink);transition:.15s}
 .iconbtn:hover{background:var(--soft);border-color:var(--accent)}
+.iconbtn.on{background:var(--wash);border-color:var(--accent);color:var(--accent-d);font-weight:700}
+.iconbtn.arming{background:var(--flag-wash);border-color:var(--flag);color:var(--flag);font-weight:700}
 
 /* buttons */
 .btn{transition:transform .14s, box-shadow .14s, filter .14s;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 26%,transparent)}
@@ -315,13 +322,15 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
 <body>
 
 <div class="appbar">
-  <div class="brand">
+  <div class="brand" id="brandHome" role="button" tabindex="0" title="Back to the main menu (your test is saved automatically)" style="cursor:pointer">
     <span class="logo"><svg viewBox="0 0 64 64" fill="none"><path d="M18 33l9 9 19-21" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     Slay Your Own Exam<span class="sub2">from your own PDFs</span>
   </div>
   <div class="spacer"></div>
+  <button class="iconbtn" id="masterBtn" title="Master lock — voice alarm the moment you leave this tab or click off the browser, on any screen. Say “I am done with my test” to unlock.">🔒 Master</button>
   <a class="iconbtn" href="flashcards.html" style="text-decoration:none;display:inline-flex;align-items:center">🗂 Flashcards</a>
   <a class="iconbtn" href="study-buddy.html" style="text-decoration:none;display:inline-flex;align-items:center">🎙 Study Buddy</a>
+  <button class="iconbtn" id="navHome" title="Back to the main menu — your test is saved automatically">⌂ Home</button>
   <button class="iconbtn hidden" id="navAdmin">Admin</button>
   <button class="iconbtn" id="navHistory">History</button>
   <button class="iconbtn" id="navSettings">Settings</button>
@@ -384,6 +393,9 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       <label style="display:flex;gap:7px;align-items:center;font-size:13.5px"><input type="checkbox" id="grabImages" checked> Pull medical images from the PDF into their question</label>
       <label style="display:flex;gap:7px;align-items:center;font-size:13.5px"><input type="checkbox" id="verifyImages"> Double-check each image is medical with Claude vision (slower)</label>
     </div>
+    <div style="margin-top:8px" class="row">
+      <label style="display:flex;gap:7px;align-items:center;font-size:13.5px"><input type="checkbox" id="focusLockOpt"> 🔒 <b>Focus Lock</b> — sound a voice alarm if I leave this tab or click away from the browser; unlock only by saying <i>“I am done with my test”</i></label>
+    </div>
     <p class="note" style="margin-top:10px">Per-question timer is fixed at <b>1:30 (90s)</b> with a pause button on every question, as you asked. Your extracted questions and test progress are saved in this browser automatically — refreshing or hitting Back won't lose them. Scanned/image PDFs have no selectable text — if extraction comes back empty, use a text-based PDF or an OCR tool first.</p>
   </div>
 
@@ -429,6 +441,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
   </div>
   <div class="row" style="margin-bottom:10px">
     <button class="btn" id="startBtn">Start test</button>
+    <button class="btn ghost sm" id="menuBtn" title="Back to the main menu — your questions stay saved">‹ Menu</button>
     <button class="btn ghost sm" id="addQ">+ Add blank question</button>
     <button class="btn ghost sm" id="exportTestBtn">Export this test (file)</button>
     <span class="note" id="reviewCount"></span>
@@ -449,6 +462,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       <div class="spacer"></div>
       <button class="tool" id="labBtn">Lab values</button>
       <button class="tool" id="calcBtn">Calculator</button>
+      <button class="tool" id="focusBtn" title="Focus Lock — voice alarm if you leave this tab; say “I am done with my test” to unlock">🔓 Focus</button>
       <button class="tool" id="pauseBtn">⏸ Pause</button>
       <span class="timer total" id="timerTotal" title="Time left for the whole block — 1:30 × number of questions">Block --:--</span>
       <span class="timer" id="timer" title="Time left on this question">1:30</span>
@@ -511,7 +525,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       <table class="rev" id="revTable"></table>
     </div>
   </div>
-  <div class="row" style="margin:16px 0 40px"><button class="btn ghost" id="backHome">New test</button></div>
+  <div class="row" style="margin:16px 0 40px"><button class="btn ghost" id="backHome">‹ Back to main menu</button></div>
 </section>
 
 <!-- ============ HISTORY ============ -->
@@ -545,7 +559,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
     <div class="divider"></div>
     <label class="fld">Anthropic API key</label>
     <input type="password" id="apiKey" placeholder="sk-ant-...">
-    <p class="note" style="margin-top:6px">Stored only in this browser, on this computer. Used for verbatim extraction and end-of-test analysis. Get one at <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>.</p>
+    <p class="note" style="margin-top:6px">Stored only in this browser, on this computer. Used for verbatim extraction and end-of-test analysis. Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>.</p>
     <div class="divider"></div>
     <div class="grid2">
       <div>
@@ -577,9 +591,11 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
 
 const LS = {
   settings:'qbank.settings', sessions:'qbank.sessions',
-  liveQ:'qbank.live.questions', live:'qbank.live.state', liveImg:'qbank.live.images'
+  liveQ:'qbank.live.questions', live:'qbank.live.state', liveImg:'qbank.live.images',
+  last:'qbank.last'
 };
 const TIMER_SECONDS = 90;
+const PAGE_TITLE = document.title;
 
 const state = {
   pdfText:'', pdfName:'', pdfDoc:null,
@@ -588,6 +604,7 @@ const state = {
   cur:0,
   mode:'test',
   attempts:[],         // per-question attempt data, aligned to questions index
+  liveId:null,         // stable id for the in-progress test; becomes the session id when finished
   startedAt:0,
   // live timer
   tStart:0, tPaused:true, tAccumMs:0, tPauseAccumMs:0, tPauseStart:0, raf:null,
@@ -604,6 +621,27 @@ function uid(){return Math.random().toString(36).slice(2,10)}
 function fmtTime(ms){const s=Math.max(0,Math.round(ms/1000));const m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0');}
 function loadJSON(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function saveJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Could not save (storage full?)')}}
+/* only allow real embedded images — blocks scripty URLs arriving via imported files or cloud data */
+function okImg(src){return typeof src==='string'&&/^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(src);}
+/* stem HTML is stored so highlights survive; sanitize on restore so a tampered save/import can never run code */
+const STEM_OK_TAGS={P:1,SPAN:1,DIV:1,TABLE:1,TBODY:1,THEAD:1,TR:1,TD:1,TH:1,B:1,I:1,EM:1,STRONG:1,BR:1,U:1};
+const STEM_OK_CLASSES={hl:1,st:1,labblock:1,labhead:1,labwrap:1,labtable:1,lk:1,lv:1,lh:1,subgroup:1,leadin:1};
+function sanitizeStemHTML(html){
+  const t=document.createElement('template');t.innerHTML=String(html||'');
+  let bad;
+  while((bad=t.content.querySelector('script,style,iframe,object,embed,link,meta,base,form,input,textarea,select,button,svg,math,img,video,audio,source,template')))bad.remove();
+  Array.from(t.content.querySelectorAll('*')).forEach(node=>{
+    if(!STEM_OK_TAGS[node.tagName]){node.replaceWith.apply(node,Array.from(node.childNodes));return;}
+    Array.from(node.attributes).forEach(at=>{
+      if(at.name==='class'){
+        const keep=String(node.getAttribute('class')||'').split(/\s+/).filter(c=>STEM_OK_CLASSES[c]).join(' ');
+        if(keep)node.setAttribute('class',keep);else node.removeAttribute('class');
+      }else if(at.name==='colspan'&&/^\d{1,2}$/.test(at.value)){/* keep */}
+      else node.removeAttribute(at.name);
+    });
+  });
+  return t.innerHTML;
+}
 
 /* ---------- settings ---------- */
 let settings = loadJSON(LS.settings,{apiKey:'',extractModel:'claude-sonnet-4-6',analysisModel:'claude-opus-4-8',theme:'light'});
@@ -661,7 +699,11 @@ function syncCloudSessions(){
   if(!fbEnabled||!curUser)return;
   fbDb.collection('sessions').where('uid','==',curUser.uid).get().then(snap=>{
     const cloud=snap.docs.map(d=>d.data());
-    const byId={};loadJSON(LS.sessions,[]).forEach(s=>byId[s.id]=s);cloud.forEach(s=>byId[s.id]=s);
+    const byId={};loadJSON(LS.sessions,[]).forEach(s=>byId[s.id]=s);
+    cloud.forEach(s=>{ // newest copy wins so a fresher local save is never rolled back
+      const l=byId[s.id];
+      if(!l||((s.savedAt||s.createdAt||0)>=(l.savedAt||l.createdAt||0)))byId[s.id]=s;
+    });
     const merged=Object.values(byId).sort((a,b)=>b.createdAt-a.createdAt).slice(0,40);
     saveJSON(LS.sessions,merged);
     if(state.screen==='history')renderHistory();
@@ -677,7 +719,7 @@ function cloudSaveLiveSoon(){ // debounced — used after each small action so w
 function cloudSaveLiveNow(){ // immediate — used right before the tab goes away
   if(!fbEnabled||!curUser)return;
   clearTimeout(_liveCloudTimer);
-  if(!state.questions.length||(state.screen!=='exam'&&state.screen!=='review'&&state.screen!=='results')){
+  if(!state.questions.length||(state.screen!=='exam'&&state.screen!=='review')){
     // only clear the cloud copy when there is truly no live test — a test suspended
     // at the menu still has its local keys and must survive for cross-device resume
     if(!localStorage.getItem(LS.liveQ))liveDocRef().delete().catch(()=>{});
@@ -685,9 +727,9 @@ function cloudSaveLiveNow(){ // immediate — used right before the tab goes awa
   }
   bankTimer();
   const qNoImg=state.questions.map(q=>{const c=Object.assign({},q);delete c.images;return c;});
-  const payload={pdfName:state.pdfName,questions:qNoImg,options:collectOptions(),
+  const payload={liveId:state.liveId,pdfName:state.pdfName,questions:qNoImg,options:collectOptions(),
     screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,attempts:state.attempts,
-    startedAt:state.startedAt,reviewMode:state.reviewMode,savedAt:Date.now()};
+    startedAt:state.startedAt,reviewMode:state.reviewMode,focusLock:focusArmed,savedAt:Date.now()};
   liveDocRef().set(payload).catch(e=>console.warn('Cloud live-save failed:',e));
 }
 function resumeFromCloudIfAny(){ // offers to pick up an in-progress test left on another device
@@ -700,6 +742,7 @@ function resumeFromCloudIfAny(){ // offers to pick up an in-progress test left o
     state.questions=d.questions.map((qq,i)=>Object.assign({},qq,{id:qq.id||uid(),idx:i,images:[]}));
     state.pdfName=d.pdfName||'';applyOptions(d.options);
     state.order=d.order||[];state.attempts=d.attempts||[];state.cur=Math.min(d.cur||0,(d.order||[]).length-1);
+    state.liveId=d.liveId||uid();state.liveName=d.pdfName||'Untitled';if(d.focusLock)state._rearmFocus=true;
     state.mode=d.mode||'test';state.startedAt=d.startedAt||Date.now();state.reviewMode=!!d.reviewMode;
     saveLiveQ();saveLiveState();
     if(d.screen==='exam'&&d.order&&d.order.length){showScreen('exam');loadQuestion(state.cur);toast('Resumed your test from another device');}
@@ -753,7 +796,7 @@ function renderAdmin(){
       (s.order||[]).forEach(qi=>{const a=s.attempts[qi],q=s.questions[qi];if(q&&q.correct){g++;if(a&&a.correctSelected)c++;}});
       const d=new Date(s.createdAt);
       return `<div class="card pad" style="margin-bottom:10px">
-        <b>${esc(s.email||'unknown')}</b><div class="note">${esc(s.name)} · ${d.toLocaleString()} · ${N} items · ${g?Math.round(100*c/g)+'%':'ungraded'}${s.analysis?' · analyzed':''}</div>
+        <b>${esc(s.email||'unknown')}</b><div class="note">${esc(s.name)} · ${d.toLocaleString()} · ${N} items · ${s.status==='inprogress'?'in progress':(g?Math.round(100*c/g)+'%':'ungraded')}${s.analysis?' · analyzed':''}</div>
       </div>`;
     }).join('');
   }).catch(e=>{box.innerHTML='<p class="note" style="color:var(--bad)">Could not load: '+esc(e.message)+'</p>';});
@@ -768,24 +811,68 @@ function showScreen(name){
   if(name==='setup')renderResumeCard();
   window.scrollTo(0,0);
 }
+/* is there an unfinished test loaded right now? */
+function liveTestActive(){return !!(state.order&&state.order.length&&state.attempts&&state.attempts.length&&!state.reviewMode&&state.liveId);}
 /* UWorld-style continue card on the main menu: shows whenever a test is in progress */
 function renderResumeCard(){
   const box=$('#resumeCard');if(!box)return;
-  const inProgress=state.questions.length&&state.order.length&&state.attempts.length&&!state.reviewMode&&!state.curSession;
-  if(!inProgress){box.innerHTML='';return;}
-  const N=state.order.length;let answered=0;state.order.forEach(qi=>{const a=state.attempts[qi];if(a&&a.selected)answered++;});
-  box.innerHTML=`<div class="resume"><span class="rdot"></span>
-    <div style="flex:1;min-width:200px"><div class="rtitle">Test in progress — ${esc(state.pdfName||'Untitled')}</div>
-    <div class="rmeta">Item ${state.cur+1} of ${N} · ${answered} answered · progress saved automatically</div></div>
-    <button class="btn" id="resumeBtn">Resume test</button>
-    <button class="btn ghost sm" id="discardBtn">Discard</button></div>`;
-  $('#resumeBtn').onclick=()=>{showScreen('exam');loadQuestion(state.cur);};
-  $('#discardBtn').onclick=()=>{
-    if(!confirm('Discard this in-progress test? Its answers and marks will be lost.'))return;
-    clearLive();state.questions=[];state.attempts=[];state.order=[];state.curSession=null;renderResumeCard();
-    toast('Test discarded');
-  };
+  if(liveTestActive()){
+    const N=state.order.length;let answered=0;state.order.forEach(qi=>{const a=state.attempts[qi];if(a&&a.selected)answered++;});
+    const pct=N?Math.round(100*answered/N):0;
+    box.innerHTML=`<div class="resume"><span class="rdot"></span>
+      <div style="flex:1;min-width:200px"><div class="rtitle">Test in progress — ${esc(state.liveName||state.pdfName||'Untitled')}</div>
+      <div class="rmeta">Item ${state.cur+1} of ${N} · ${answered} answered (${pct}%) · every answer, highlight and cross-out is saved</div></div>
+      <button class="btn" id="resumeBtn">Resume test</button>
+      <button class="btn ghost sm" id="discardBtn">Discard</button></div>`;
+    $('#resumeBtn').onclick=()=>{returnScreen=null;showScreen('exam');loadQuestion(state.cur);};
+    $('#discardBtn').onclick=()=>{
+      if(!confirm('Discard this in-progress test? Its answers and marks will be lost.'))return;
+      clearLive();state.questions=[];state.attempts=[];state.order=[];state.curSession=null;state.liveId=null;renderResumeCard();
+      toast('Test discarded');
+    };
+    return;
+  }
+  // extracted questions that haven't been started yet — offer the way back into review
+  if(state.questions.length&&!state.reviewMode&&!state.curSession){
+    box.innerHTML=`<div class="resume"><span class="rdot"></span>
+      <div style="flex:1;min-width:200px"><div class="rtitle">Question set ready — ${esc(state.pdfName||'Untitled')}</div>
+      <div class="rmeta">${state.questions.length} questions extracted · not started yet</div></div>
+      <button class="btn" id="resumeRevBtn">Review &amp; start</button>
+      <button class="btn ghost sm" id="discardRevBtn">Discard</button></div>`;
+    $('#resumeRevBtn').onclick=()=>{returnScreen=null;renderReview();showScreen('review');};
+    $('#discardRevBtn').onclick=()=>{
+      if(!confirm('Discard this extracted question set?'))return;
+      clearLive();state.questions=[];state.attempts=[];state.order=[];state.curSession=null;state.liveId=null;renderResumeCard();
+      toast('Question set discarded');
+    };
+    return;
+  }
+  box.innerHTML='';
 }
+/* ---- go to the main menu from ANY screen, never losing anything ---- */
+function suspendLiveTest(){
+  if(state.screen!=='exam'||!liveTestActive())return false;
+  if(!state.tPaused){ // freeze the clock so no time is lost
+    state.tAccumMs=state.tAccumMs+(Date.now()-state.tStart);
+    const a=curA&&curQ()?curA():null;if(a)a.activeMs=state.tAccumMs;
+    state.tPaused=true;cancelAnimationFrame(state.raf);
+  }
+  closeNavPanel();
+  saveLiveState();cloudSaveLiveNow();
+  return true;
+}
+function goHome(){
+  if(focusGuard(goHome))return; // Focus Lock armed → speak to unlock first
+  closeModal();
+  const suspended=suspendLiveTest();
+  returnScreen=null;
+  showScreen('setup');
+  if(suspended)toast('Test suspended — everything is saved, resume any time');
+}
+$('#brandHome').onclick=goHome;
+$('#brandHome').onkeydown=e=>{if(e.key==='Enter'||e.key===' ')goHome();};
+$('#navHome').onclick=goHome;
+$('#menuBtn').onclick=goHome;
 /* Settings & History are overlays: opening them pauses the test (no time lost)
    and Back/Save returns you exactly where you were. */
 let returnScreen=null;
@@ -810,20 +897,22 @@ function backFromOverlay(){
 $('#navSettings').onclick=()=>gotoOverlay('settings');
 $('#navHistory').onclick=()=>{renderHistory();gotoOverlay('history');};
 $('#navAdmin').onclick=()=>{renderAdmin();gotoOverlay('admin');};
-$('#backHome').onclick=()=>{ if(confirm('Start a new test? Your current questions and progress will be cleared from this browser.')){clearLive();state.questions=[];state.attempts=[];state.order=[];state.curSession=null;showScreen('setup');} };
+$('#backHome').onclick=goHome; // never destructive — a finished test is already in History, a live one stays saved
 $('#backHome2').onclick=$('#backHome3').onclick=$('#backHome4').onclick=()=>backFromOverlay();
 
 /* ---------- live persistence (survives refresh / Back) ---------- */
 function collectOptions(){return {
   extractMethod:$('#extractMethod').value, testMode:$('#testMode').value,
   shuffle:$('#shuffle').checked, autoAdvance:$('#autoAdvance').checked,
-  grabImages:$('#grabImages').checked, verifyImages:$('#verifyImages').checked
+  grabImages:$('#grabImages').checked, verifyImages:$('#verifyImages').checked,
+  focusLock:$('#focusLockOpt')?$('#focusLockOpt').checked:false
 };}
 function applyOptions(o){ if(!o)return;
   if(o.extractMethod)$('#extractMethod').value=o.extractMethod;
   if(o.testMode)$('#testMode').value=o.testMode;
   $('#shuffle').checked=!!o.shuffle; $('#autoAdvance').checked=!!o.autoAdvance;
   $('#grabImages').checked=o.grabImages!==false; $('#verifyImages').checked=o.verifyImages!==false;
+  if($('#focusLockOpt'))$('#focusLockOpt').checked=!!o.focusLock;
 }
 function bankTimer(){ // write current question's active time into its attempt (no UI change)
   if(state.reviewMode||!state.order||!state.order.length)return;
@@ -844,11 +933,13 @@ function saveLiveQ(){ // questions WITHOUT image bytes — small, so it (almost)
 }
 function saveLiveState(){ // the small, fast-changing exam/progress state — written on every action
   if(!state.questions.length)return;
-  if(state.screen!=='exam'&&state.screen!=='review'&&state.screen!=='results')return; // don't overwrite with overlay screens
+  // Only the exam/review screens own the live snapshot. Viewing an old session's
+  // results or an overlay must never overwrite an in-progress test's save.
+  if(state.screen!=='exam'&&state.screen!=='review')return;
   bankTimer();
-  const snap={screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,
+  const snap={liveId:state.liveId,screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,
     attempts:state.attempts,startedAt:state.startedAt,reviewMode:state.reviewMode,
-    session:state.curSession?state.curSession.id:null,savedAt:Date.now()};
+    focusLock:focusArmed,savedAt:Date.now()};
   try{localStorage.setItem(LS.live,JSON.stringify(snap));}catch(e){}
   cloudSaveLiveSoon();
 }
@@ -862,7 +953,15 @@ function tryResume(){
   let q=null,s=null;
   try{q=JSON.parse(localStorage.getItem(LS.liveQ)||'null');}catch(e){}
   try{s=JSON.parse(localStorage.getItem(LS.live)||'null');}catch(e){}
-  if(!q||!Array.isArray(q.questions)||!q.questions.length)return false;
+  if(!q||!Array.isArray(q.questions)||!q.questions.length){
+    // no live test — maybe the tab was closed on a results page
+    const last=loadJSON(LS.last,null);
+    if(last&&last.session){
+      const sess=loadJSON(LS.sessions,[]).find(x=>x.id===last.session);
+      if(sess&&sess.status!=='inprogress'){state.curSession=sess;renderResults(sess);if(sess.analysis)$('#analysisOut').innerHTML=mdToHtml(sess.analysis);showScreen('results');return true;}
+    }
+    return false;
+  }
   state.questions=q.questions;state.questions.forEach((qq,i)=>{qq.id=qq.id||uid();qq.idx=i;qq.images=qq.images||[];});
   // re-attach images if they were saved
   try{const imgs=JSON.parse(localStorage.getItem(LS.liveImg)||'null');
@@ -870,13 +969,10 @@ function tryResume(){
   state.pdfName=q.pdfName||'';applyOptions(q.options);
   if(s&&s.screen==='exam'&&Array.isArray(s.order)&&Array.isArray(s.attempts)){
     state.order=s.order;state.attempts=s.attempts;state.cur=Math.min(s.cur||0,s.order.length-1);
+    state.liveId=s.liveId||uid();state.liveName=q.pdfName||'Untitled';if(s.focusLock)state._rearmFocus=true;
     state.mode=s.mode||'test';state.startedAt=s.startedAt||Date.now();state.reviewMode=false;
     showScreen('setup'); // land on the menu, UWorld-style — the resume card takes it from here
     toast('You have a test in progress — resume when ready');return true;
-  }
-  if(s&&s.screen==='results'&&s.session){
-    const sess=loadJSON(LS.sessions,[]).find(x=>x.id===s.session);
-    if(sess){state.curSession=sess;renderResults(sess);if(sess.analysis)$('#analysisOut').innerHTML=mdToHtml(sess.analysis);showScreen('results');return true;}
   }
   renderReview();showScreen('review');toast('Restored your extracted questions — pick up where you left off');return true;
 }
@@ -962,6 +1058,8 @@ $('#extractBtn').onclick=async()=>{
     }
     if(!qs.length){st.innerHTML='No questions detected. Try the other extraction method, or check the PDF.';$('#extractBtn').disabled=false;return;}
     qs.forEach((q,i)=>{q.id=q.id||uid();q.idx=i;q.images=q.images||[];});
+    stashLiveToHistory(); // an in-progress test is archived to History before this new set replaces it
+    state.order=[];state.attempts=[];state.liveId=null;state.curSession=null;
     state.questions=qs;
     // medical images
     if($('#grabImages').checked&&state.pdfDoc){
@@ -995,8 +1093,8 @@ function localParse(text){
     if(!cur)continue;
     if((m=optStart.exec(line))){cur.options.push({letter:m[1].toUpperCase(),text:m[2]||''});bucket='opt';continue;}
     if((m=ansKey.exec(line))){cur.correct=m[1].toUpperCase();bucket='expl';continue;}
-    // continuation
-    if(bucket==='stem')cur.stem+=' '+line.trim();
+    // continuation — stems keep their line breaks so lab rows stay detectable rows
+    if(bucket==='stem')cur.stem+='\n'+line;
     else if(bucket==='opt'&&cur.options.length)cur.options[cur.options.length-1].text+=' '+line.trim();
     else if(bucket==='expl')cur.explanation+=(cur.explanation?' ':'')+line.trim();
   }
@@ -1166,41 +1264,53 @@ async function extractPageImages(page){
   return {anchors,images};
 }
 async function attachImages(pdf,questions,verify,onProg){
-  const byNum={};            // question number -> [dataURL]
-  const ordered=[];          // images in reading order for positional fallback
-  let carry=null;            // last question number seen across page boundary
+  // every kept image in reading order, tagged with BOTH the question number printed
+  // above it in the PDF and the sequential index of that question-start (so images
+  // still land on the right question when numbering is absent or mismatched)
+  const ordered=[];
+  let carryNum=null,carrySeq=-1,seqCount=0; // carried across page boundaries
   for(let p=1;p<=pdf.numPages;p++){
     onProg&&onProg('Scanning page '+p+' / '+pdf.numPages+' for images …');
-    const page=await pdf.getPage(p);
-    const {anchors,images}=await extractPageImages(page);
-    // sweep this page by y, assigning each image to the nearest question-start above it
-    const events=[];
-    anchors.forEach(a=>events.push({y:a.y,kind:'a',num:a.num}));
-    images.forEach(im=>events.push({y:im.yTop,kind:'i',dataURL:im.dataURL}));
-    events.sort((x,y)=>x.y-y.y||(x.kind==='a'?-1:1));
-    for(const ev of events){
-      if(ev.kind==='a')carry=ev.num;
-      else{const n=carry;(byNum[n]=byNum[n]||[]).push(ev.dataURL);ordered.push({num:n,dataURL:ev.dataURL});}
-    }
+    try{
+      const page=await pdf.getPage(p);
+      const {anchors,images}=await extractPageImages(page);
+      // sweep this page by y, assigning each image to the nearest question-start above it
+      const events=[];
+      anchors.forEach(a=>events.push({y:a.y,kind:'a',num:a.num}));
+      images.forEach(im=>events.push({y:im.yTop,kind:'i',dataURL:im.dataURL}));
+      events.sort((x,y)=>x.y-y.y||(x.kind==='a'?-1:1));
+      for(const ev of events){
+        if(ev.kind==='a'){carryNum=ev.num;carrySeq=seqCount++;}
+        else if(carrySeq>=0)ordered.push({num:carryNum,seq:carrySeq,dataURL:ev.dataURL}); // images before the first question (covers/logos) are dropped
+      }
+    }catch(pageErr){console.warn('Image scan failed on page '+p+' — continuing:',pageErr);}
   }
+  if(!ordered.length)return;
   // verify medical with vision (optional)
   let allow=null;
-  if(verify&&settings.apiKey&&ordered.length){
+  if(verify&&settings.apiKey){
     try{onProg&&onProg('Checking '+ordered.length+' image(s) are medical …');
       allow=await visionFilter(ordered.map(o=>o.dataURL),onProg);
     }catch(e){console.error('vision',e);allow=null;}
   }
-  // build a per-question pull, honoring the allow-list
-  const finalByNum={};
-  ordered.forEach((o,i)=>{if(allow&&allow[i]===false)return;(finalByNum[o.num]=finalByNum[o.num]||[]).push(o.dataURL);});
-  const anyNumbers=questions.some(q=>parseInt(q.number,10)>0);
-  if(anyNumbers&&Object.keys(finalByNum).length){
-    questions.forEach(q=>{const n=parseInt(q.number,10);if(finalByNum[n])q.images=finalByNum[n].slice();});
+  const kept=ordered.filter((o,i)=>!(allow&&allow[i]===false));
+  if(!kept.length)return;
+  // strategy 1: match by the question numbers printed in the PDF — but only when
+  // they actually line up with the extracted questions
+  const numToIdx={};let dupNum=false;
+  questions.forEach((q,i)=>{const n=parseInt(q.number,10);if(n>0){if(numToIdx[n]!==undefined)dupNum=true;numToIdx[n]=i;}});
+  let byNumHits=0;
+  kept.forEach(o=>{if(o.num!=null&&numToIdx[o.num]!==undefined)byNumHits++;});
+  const assigned=new Array(questions.length).fill(null);
+  if(!dupNum&&byNumHits>=Math.ceil(kept.length*0.5)){
+    kept.forEach(o=>{const i=numToIdx[o.num];if(i!==undefined)(assigned[i]=assigned[i]||[]).push(o.dataURL);});
   }else{
-    // positional fallback: distribute image groups (in reading order) to questions in order
-    const keys=Object.keys(finalByNum);
-    keys.forEach((k,idx)=>{if(questions[idx])questions[idx].images=finalByNum[k].slice();});
+    // strategy 2: reading order — the Nth question-start in the PDF is the Nth extracted question
+    kept.forEach(o=>{if(o.seq>=0&&o.seq<questions.length)(assigned[o.seq]=assigned[o.seq]||[]).push(o.dataURL);});
   }
+  let attached=0;
+  questions.forEach((q,i)=>{if(assigned[i]&&assigned[i].length){q.images=assigned[i].slice();attached+=assigned[i].length;}});
+  onProg&&onProg(attached?('Attached '+attached+' image(s) to their questions.'):'No question images found.');
 }
 async function visionFilter(dataURLs,onProg){
   const result=new Array(dataURLs.length).fill(true);
@@ -1265,9 +1375,12 @@ function reviewCard(q,i){
   if(q.images&&q.images.length){
     const ib=document.createElement('div');ib.className='revimgs';
     q.images.forEach((src,j)=>{
+      if(!okImg(src))return;
       const d=document.createElement('div');d.className='revimg';
-      d.innerHTML=`<img src="${src}" alt="figure"><button class="x" title="Remove image">✕</button>`;
-      d.querySelector('.x').onclick=()=>{q.images.splice(j,1);renderReview();};
+      const im=document.createElement('img');im.src=src;im.alt='figure';
+      const x=document.createElement('button');x.className='x';x.title='Remove image';x.textContent='✕';
+      x.onclick=()=>{q.images.splice(j,1);renderReview();};
+      d.appendChild(im);d.appendChild(x);
       ib.appendChild(d);
     });
     el.appendChild(ib);
@@ -1317,54 +1430,71 @@ function startTest(){
   state.attempts=all.map(()=>({selected:null,correctSelected:null,activeMs:0,pausedMs:0,visits:0,
     answerChanges:[],eliminated:[],flagged:false,expired:false,stemHTML:null,highlights:[],strikes:[],submitted:false}));
   state.cur=0;state.startedAt=Date.now();
+  state.liveId=uid();state.liveName=state.pdfName||'Untitled';state.curSession=null;
+  try{localStorage.removeItem(LS.last);}catch(e){}
   showScreen('exam');
   saveLiveQ();
   loadQuestion(0);
+  if($('#focusLockOpt')&&$('#focusLockOpt').checked)armFocusLock(true);
 }
 
 function curQ(){return state.questions[state.order[state.cur]];}
 function curA(){return state.attempts[state.order[state.cur]];}
 
-/* Turn verbatim stem text into clean HTML: prose reflows into paragraphs,
-   lab/tabular blocks become aligned tables. Words are never changed — only layout. */
+/* Turn verbatim stem text into clean HTML. Words are never changed — only layout:
+   prose reflows into paragraphs; every lab/data line is pulled OUT of the prose and
+   collected into ONE "Laboratory values" section that sits below the vignette
+   (and above the lead-in question), instead of being mixed through the stem. */
 function renderStem(text){
   const lines=String(text||'').replace(/\r/g,'').split('\n').map(l=>l.replace(/\s+$/,''));
-  const out=[];let prose=[];let data=[];
-  const flushProse=()=>{ if(prose.length){out.push('<p>'+esc(prose.join(' ').replace(/\s+/g,' ').trim())+'</p>');prose=[];} };
-  const flushData=()=>{
-    const rows=data;data=[];
-    if(rows.length<2){ if(rows.length===1)prose.push(rows[0].cells.join('  ')); return; }
-    const maxCols=rows.reduce((m,r)=>Math.max(m,r.header?1:r.cells.length),0);
-    let html='<div class="labwrap"><table class="labtable">';
-    for(const r of rows){
-      if(r.header){html+='<tr><td class="lh" colspan="'+maxCols+'">'+esc(r.cells[0])+'</td></tr>';continue;}
-      html+='<tr'+(r.indent?' class="subgroup"':'')+'>'+r.cells.map((c,ci)=>
-        '<td class="'+(ci===0?'lk':'lv')+'">'+esc(c)+'</td>').join('')+'</tr>';
-    }
-    html+='</table></div>';out.push(html);
-  };
-  const subHeader=/^(serum|urine|plasma|blood|arterial blood gas|csf|cerebrospinal fluid)\s*:?\s*$/i;
+  const paras=[];let prose=[];const labRows=[];let labBias=0; // labBias: just saw a "Labs show:" line → read the next lines as data more eagerly
+  const flushProse=()=>{ if(prose.length){paras.push(prose.join(' ').replace(/\s+/g,' ').trim());prose=[];} };
+  const subHeader=/^(serum|urine|urinalysis|plasma|blood|arterial blood gas(?:es)?( \(room air\))?|csf|cerebrospinal fluid|hematolog(?:y|ic)|chemistr(?:y|ies)|coagulation( studies)?)\s*:?\s*$/i;
+  const labTrigger=/\blab(?:oratory)?\s+(studies|results|values|findings|tests|data|evaluation)\b[^?]*?(show|reveal|demonstrate|include|are as follows|following|:)?\s*:?\s*$/i;
+  const VALUE=/^([<>≤≥]?\s?\d[\d.,]*(\s?[–—-]\s?[<>]?\d[\d.,]*)?(\s?(×|x)\s?10[⁰¹²³⁴⁵⁶⁷⁸⁹\d]*)?\s*([A-Za-zµμ%°/][A-Za-z0-9µμ%°/·^\-\s³²]*)?|\d+:\d+.*|(positive|negative|trace|normal|elevated|decreased|present|absent|reddish|cloudy|clear|turbid|within normal limits).*)$/i;
+  const PROSEY=/\b(is|are|was|were|the|an|and|for|with|of|at|to|in|on|by|he|she|her|his|had|has|comes|presents|denies|reports|note[ds]?|show[ns]?|which|what|following|because|after|before|during)\b/i;
   const asData=(line)=>{
     const t=line.replace(/^\s+/,'');const indent=line.length-t.length>0;
+    // rows where the PDF kept a run of spaces between label and value
     let cells=t.split(/\s{2,}/).map(s=>s.trim()).filter(Boolean);
-    if(cells.length>=2 && /[\d<>+%]/.test(cells.slice(1).join(' '))) return {cells,indent};
-    // fallback for short "Label value" rows where spacing was collapsed (e.g. 'Na+ 140 mEq/L')
-    if(t.length<=42){
-      const m=/^([A-Za-z][A-Za-z0-9+\-().,/ ]{0,26}?)\s+((?:[<>]?\d[\d.,]*\s?[A-Za-z%/µμ°·].*)|(?:[<>]?\d[\d.,]*\+?%?)|positive|negative|trace|reddish)$/i.exec(t);
-      if(m && !/\b(is|are|was|were|the|and|for|with|of|at|to|in|on|by|he|she|her|his|had|has|note[ds]?|show[ns]?)\b/i.test(m[1]))
+    if(cells.length>=2 && /[\d<>+%]|positive|negative|trace|normal/i.test(cells.slice(1).join(' '))) return {cells,indent};
+    // rows where spacing collapsed to one space (e.g. 'Hemoglobin 10.2 g/dL')
+    const max=labBias?76:48;
+    if(t.length<=max){
+      const m=/^([A-Za-z][A-Za-z0-9+⁺⁻₀-₉\-().,/% ]{1,36}?)\s+([<>≤≥]?\s?\d.*|positive|negative|trace|normal|within normal limits|1:\d+.*)$/i.exec(t);
+      if(m && !PROSEY.test(m[1]) && VALUE.test(m[2].trim()))
         return {cells:[m[1].trim(),m[2].trim()],indent};
     }
     return null;
   };
   for(const line of lines){
     if(/^\s*$/.test(line))continue;
+    const trimmed=line.trim();
+    if(trimmed.length<80&&labTrigger.test(trimmed)){flushProse();labBias=14;continue;} // the section header replaces this line
+    if(subHeader.test(trimmed)){flushProse();labRows.push({header:true,cells:[trimmed.replace(/:$/,'')]});labBias=Math.max(labBias,10);continue;}
     const d=asData(line);
-    if(d){flushProse();data.push(d);continue;}
-    if(subHeader.test(line.trim())){flushProse();data.push({header:true,cells:[line.trim()]});continue;}
-    flushData();prose.push(line.trim());
+    if(d){flushProse();labRows.push(d);continue;}
+    labBias=0;
+    prose.push(trimmed);
   }
-  flushProse();flushData();
-  return out.join('')||('<p>'+esc(String(text||''))+'</p>');
+  flushProse();
+  const pHTML=p=>'<p>'+esc(p)+'</p>';
+  const dataRows=labRows.filter(r=>!r.header);
+  if(!dataRows.length)return paras.map(pHTML).join('')||('<p>'+esc(String(text||''))+'</p>');
+  // vignette first, labs in their own section, the lead-in question last
+  const isLead=p=>/\?\s*$/.test(p)||/^(which of the following|what is|which one|the most (likely|appropriate))/i.test(p);
+  let leadStart=paras.length;
+  while(leadStart>0&&isLead(paras[leadStart-1]))leadStart--;
+  const before=paras.slice(0,leadStart),lead=paras.slice(leadStart);
+  const maxCols=labRows.reduce((m,r)=>Math.max(m,r.header?1:r.cells.length),2);
+  let tbl='<div class="labblock"><div class="labhead">Laboratory values</div><div class="labwrap"><table class="labtable">';
+  for(const r of labRows){
+    if(r.header){tbl+='<tr><td class="lh" colspan="'+maxCols+'">'+esc(r.cells[0])+'</td></tr>';continue;}
+    tbl+='<tr'+(r.indent?' class="subgroup"':'')+'>'+r.cells.map((c,ci)=>
+      '<td class="'+(ci===0?'lk':'lv')+'">'+esc(c)+'</td>').join('')+'</tr>';
+  }
+  tbl+='</table></div></div>';
+  return before.map(pHTML).join('')+tbl+lead.map(p=>'<p class="leadin">'+esc(p)+'</p>').join('');
 }
 
 function loadQuestion(i){
@@ -1373,14 +1503,16 @@ function loadQuestion(i){
   const q=curQ(),a=curA();
   a.visits++;
   $('#exQno').textContent='Item '+(i+1)+' of '+state.order.length;
-  // stem (restore marks if any, else render cleanly)
+  // stem (restore marks if any, else render cleanly) — restored HTML is sanitized
+  // because saves can arrive from imported files or the cloud
   const stem=$('#stem');
-  if(a.stemHTML!=null)stem.innerHTML=a.stemHTML;
+  if(a.stemHTML!=null)stem.innerHTML=sanitizeStemHTML(a.stemHTML);
   else stem.innerHTML=renderStem(q.stem);
   bindMarkClicks();
   // medical images for this question
   const ib=$('#stemImgs');ib.innerHTML='';
-  if(q.images&&q.images.length){q.images.forEach(src=>{const im=document.createElement('img');im.className='qimg';im.src=src;im.alt='Medical figure for this question';ib.appendChild(im);});}
+  if(q.images&&q.images.length){q.images.filter(okImg).forEach(src=>{const im=document.createElement('img');im.className='qimg';im.src=src;im.alt='Medical figure for this question';ib.appendChild(im);});}
+  if(state._rearmFocus){state._rearmFocus=false;armFocusLock(false);} // Focus Lock survives a refresh/resume
   // options
   renderOptions(q,a);
   // flag
@@ -1393,6 +1525,7 @@ function loadQuestion(i){
   $('#endBtn').classList.toggle('hidden',state.reviewMode);
   $('#pauseBtn').classList.toggle('hidden',state.reviewMode);
   $('#suspendBtn').classList.toggle('hidden',state.reviewMode);
+  $('#focusBtn').classList.toggle('hidden',state.reviewMode);
   // if tutor already submitted, or review mode → show feedback
   if(state.reviewMode||(state.mode==='tutor'&&a.submitted))showFeedback(q,a);
   renderNavMini();
@@ -1577,17 +1710,12 @@ $('#navToggle').onclick=()=>{
 function nextQuestion(){if(state.cur<state.order.length-1)loadQuestion(state.cur+1);else if(!state.reviewMode)endTest();}
 $('#nextBtn').onclick=nextQuestion;
 $('#prevBtn').onclick=()=>{if(state.cur>0)loadQuestion(state.cur-1);};
-$('#suspendBtn').onclick=()=>{ // UWorld-style: back to the menu with everything saved; resume any time
-  if(!state.tPaused){ // freeze the clock so no time is lost
-    state.tAccumMs=state.tAccumMs+(Date.now()-state.tStart);
-    const a=curA&&curQ()?curA():null;if(a)a.activeMs=state.tAccumMs;
-    state.tPaused=true;cancelAnimationFrame(state.raf);
-  }
-  closeNavPanel();
-  saveLiveState();cloudSaveLiveNow();
+function doSuspend(){ // UWorld-style: back to the menu with everything saved; resume any time
+  suspendLiveTest();
   showScreen('setup');
   toast('Test suspended — resume any time from this menu');
-};
+}
+$('#suspendBtn').onclick=()=>{ if(focusGuard(doSuspend))return; doSuspend(); };
 $('#submitBtn').onclick=()=>{ // tutor mode
   const q=curQ(),a=curA();
   if(!a.selected){toast('Select an answer first');return;}
@@ -1600,9 +1728,9 @@ function showFeedback(q,a){
   const fb=$('#feedback');
   const known=!!q.correct;
   const good=a.correctSelected===true;
-  let v=!known?'<span class="verdict">Your answer: '+(a.selected||'—')+'</span>'
+  let v=!known?'<span class="verdict">Your answer: '+esc(a.selected||'—')+'</span>'
     :good?'<span class="verdict good">Correct</span>'
-    :'<span class="verdict bad">Incorrect — you chose '+(a.selected||'—')+', answer is '+q.correct+'</span>';
+    :'<span class="verdict bad">Incorrect — you chose '+esc(a.selected||'—')+', answer is '+esc(q.correct)+'</span>';
   fb.innerHTML='<div class="box">'+v+(q.explanation?'<div class="expl">'+esc(q.explanation)+'</div>':'<div class="note">No explanation in the PDF for this item.</div>')+'</div>';
   fb.classList.remove('hidden');
 }
@@ -1746,21 +1874,261 @@ function openCalc(){
 function safeEval(e){if(!/^[0-9+\-*/. ()]*$/.test(e))throw'bad';return Function('"use strict";return ('+e+')')();}
 
 /* ---- modal ---- */
+let _modalCleanup=null; // lets a modal (e.g. voice unlock) stop its mic/listeners however it closes
 function openModal(title,html){
+  if(_modalCleanup){try{_modalCleanup();}catch(e){}_modalCleanup=null;}
   $('#modalRoot').innerHTML=`<div class="modalbg"><div class="modal"><div class="mh">${esc(title)}<div class="spacer" style="flex:1"></div><button class="iconbtn" id="mClose">Close</button></div><div class="mb">${html}</div></div></div>`;
   $('#mClose').onclick=closeModal;
   $('#modalRoot .modalbg').onclick=e=>{if(e.target.classList.contains('modalbg'))closeModal();};
 }
-function closeModal(){$('#modalRoot').innerHTML='';}
+function closeModal(){
+  if(_modalCleanup){try{_modalCleanup();}catch(e){}_modalCleanup=null;}
+  $('#modalRoot').innerHTML='';
+}
+
+/* =========================================================================
+   FOCUS LOCK — web version of the FocusLock Mac app.
+   Arms during a test. Leaving this tab (or clicking off the browser) sounds a
+   siren + voice alarm (minimum 5-second blast). The only way to turn it off is
+   to say "I am done with my test" out loud — or a typed emergency fallback.
+   Honest limits vs the Mac app: a web page can't raise the system volume, and
+   closing the tab entirely stops any alarm a website can make.
+   ========================================================================= */
+const FOCUS_PHRASE='i am done with my test';
+const ALARM_URL='alarm.m4a'; // Chase's own recorded alarm, loops while the alarm blares
+let focusArmed=false,_fAudio=null,_fBuf=null,_fNodes=null,_fSpeakInt=null,_fAlarmAt=0,_fStopT=null,_fBlurT=null,_fCount=null;
+/* MASTER LOCK — the appbar "🔒 Master" button. Same alarm + speak-to-unlock as Focus
+   Lock, but guards on EVERY screen (not just during a test) and survives a refresh.
+   Master lock never blocks moving around inside the site — it only fires when you
+   leave the tab or click off the browser entirely. */
+let masterLock=false,_mCount=null;
+const MASTER_LS='qbank.masterlock';
+function fEnsureAudio(){
+  if(!_fAudio){try{_fAudio=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  if(_fAudio&&_fAudio.state==='suspended')_fAudio.resume().catch(()=>{});
+  return _fAudio;
+}
+function fLoadAlarmBuffer(){ // pre-decode the recording at arm time so the alarm fires instantly
+  const ctx=fEnsureAudio();
+  if(!ctx||_fBuf)return;
+  fetch(ALARM_URL).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+    .then(ab=>ctx.decodeAudioData(ab))
+    .then(buf=>{_fBuf=buf;})
+    .catch(e=>console.warn('Alarm recording unavailable, siren fallback will be used:',e));
+}
+function armFocusLock(countdown){
+  if(focusArmed)return;
+  fEnsureAudio(); // created on a user gesture so the alarm is allowed later, even from a background tab
+  fLoadAlarmBuffer();
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){ // ask for the mic NOW so speak-to-unlock works later
+    navigator.mediaDevices.getUserMedia({audio:true}).then(s=>s.getTracks().forEach(t=>t.stop()))
+      .catch(()=>toast('Mic blocked — you can still unlock by typing the phrase'));
+  }
+  const btn=$('#focusBtn');
+  const finish=()=>{focusArmed=true;_fCount=null;
+    if(btn){btn.classList.add('on');btn.textContent='🔒 Locked';}
+    toast('Focus Lock ON — leaving this tab sounds the alarm. Say “I am done with my test” to unlock.');
+    saveLiveState();
+  };
+  if(countdown){ // 5-second countdown, same as the Mac app
+    let n=5;clearInterval(_fCount);
+    if(btn)btn.textContent='🔒 '+n;
+    toast('Focus Lock arms in 5 seconds…');
+    _fCount=setInterval(()=>{n--;
+      if(n<=0){clearInterval(_fCount);finish();}
+      else if(btn)btn.textContent='🔒 '+n;
+    },1000);
+  }else finish();
+}
+function disarmFocusLock(silent){
+  clearInterval(_fCount);_fCount=null;
+  const was=focusArmed;
+  focusArmed=false;fStopAlarm(true);
+  const btn=$('#focusBtn');if(btn){btn.classList.remove('on');btn.textContent='🔓 Focus';}
+  if(was&&!silent)toast('Focus Lock is off');
+  if(was)saveLiveState();
+}
+function fAlarmActive(){return !!_fNodes;}
+function fStartAlarm(){
+  if(fAlarmActive()||!(focusArmed||masterLock))return;
+  _fAlarmAt=Date.now();
+  document.title='🚨 GET BACK TO YOUR TEST';
+  const ctx=fEnsureAudio();
+  let nodes={};
+  if(ctx&&_fBuf){ // Chase's recording, looping — lives on the audio thread so it keeps
+    try{         // blaring even while the tab is hidden/throttled
+      const src=ctx.createBufferSource(),gain=ctx.createGain();
+      src.buffer=_fBuf;src.loop=true;
+      gain.gain.value=1.0;src.connect(gain);gain.connect(ctx.destination);
+      src.start();
+      nodes={src,gain};
+    }catch(e){}
+  }
+  if(!nodes.src&&ctx){
+    try{ // fallback siren if the recording didn't load
+      const osc=ctx.createOscillator(),gain=ctx.createGain(),lfo=ctx.createOscillator(),lfoGain=ctx.createGain();
+      osc.type='square';osc.frequency.value=880;
+      lfo.type='sine';lfo.frequency.value=2.2;lfoGain.gain.value=320;
+      lfo.connect(lfoGain);lfoGain.connect(osc.frequency);
+      gain.gain.value=0.55;osc.connect(gain);gain.connect(ctx.destination);
+      osc.start();lfo.start();
+      nodes={osc,lfo,gain};
+    }catch(e){}
+  }
+  _fNodes=nodes;
+  if(!nodes.src&&('speechSynthesis' in window)){ // spoken fallback rides along with the siren
+    const speak=()=>{ if(!fAlarmActive())return;
+      try{const u=new SpeechSynthesisUtterance('Get back to your test!');u.volume=1;u.rate=1.05;
+        speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}
+    };
+    speak();clearInterval(_fSpeakInt);_fSpeakInt=setInterval(speak,3000);
+  }
+}
+function fStopAlarm(force){
+  if(!fAlarmActive())return;
+  const since=Date.now()-_fAlarmAt;
+  if(!force&&since<5000){ // minimum 5-second blast, like the Mac app
+    clearTimeout(_fStopT);_fStopT=setTimeout(()=>fStopAlarm(false),5000-since+60);return;
+  }
+  clearTimeout(_fStopT);_fStopT=null;clearInterval(_fSpeakInt);_fSpeakInt=null;
+  try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
+  try{_fNodes.src&&_fNodes.src.stop();}catch(e){}
+  try{_fNodes.osc&&_fNodes.osc.stop();_fNodes.lfo&&_fNodes.lfo.stop();}catch(e){}
+  _fNodes=null;document.title=PAGE_TITLE;
+}
+function fShouldGuard(){return masterLock||(focusArmed&&state.screen==='exam'&&!state.reviewMode);}
+function fAway(){
+  if(!fShouldGuard())return;
+  if(document.visibilityState==='hidden'){fStartAlarm();return;} // tab switched / minimized — instant
+  clearTimeout(_fBlurT); // window blur (clicked another app): short grace so dialogs don't false-alarm
+  _fBlurT=setTimeout(()=>{ if(fShouldGuard()&&(document.visibilityState==='hidden'||!document.hasFocus()))fStartAlarm(); },700);
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')fAway(); else fStopAlarm(false); });
+window.addEventListener('blur',fAway);
+window.addEventListener('focus',()=>{clearTimeout(_fBlurT);fStopAlarm(false);});
+window.addEventListener('beforeunload',e=>{ if(fShouldGuard()){e.preventDefault();e.returnValue='';} });
+/* speak-to-unlock */
+function normPhrase(s){return String(s||'').toLowerCase().replace(/[^a-z ]+/g,' ').replace(/\s+/g,' ').trim();}
+function phraseMatches(heard){
+  const h=normPhrase(heard);
+  if(h.indexOf('done with my test')>=0)return true;
+  const want=FOCUS_PHRASE.split(' ');const hs=new Set(h.split(' '));
+  let hit=0;want.forEach(w=>{if(hs.has(w))hit++;});
+  return hit>=want.length-1; // tolerate one misheard word
+}
+function focusGuard(cb){ // true = intercepted; runs cb after a successful voice unlock
+  if(!focusArmed)return false;
+  openUnlockModal(cb);
+  return true;
+}
+function openUnlockModal(cb){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  openModal('🔒 Focus Lock',
+    '<p style="margin:0 0 6px;font-weight:600">Say the unlock phrase out loud:</p>'+
+    '<p style="font-size:20px;font-weight:800;margin:0 0 10px;color:var(--accent-d)">“I am done with my test”</p>'+
+    '<p class="note" id="unlockStatus">'+(SR?'🎙 Listening…':'Voice unlock isn’t supported in this browser — type the phrase below.')+'</p>'+
+    '<div class="divider"></div>'+
+    '<label class="fld">Emergency fallback — type the phrase exactly</label>'+
+    '<input type="text" id="unlockTyped" placeholder="I am done with my test" autocomplete="off">'+
+    '<div class="row" style="margin-top:10px"><button class="btn" id="unlockTypedBtn">Unlock</button><button class="btn ghost sm" id="unlockCancel">Never mind — keep testing</button></div>');
+  let rec=null,done=false,keep=true;
+  _modalCleanup=()=>{keep=false;try{rec&&rec.stop();}catch(e){}};
+  const finish=ok=>{
+    if(done)return;done=true;keep=false;
+    try{rec&&rec.stop();}catch(e){}
+    closeModal();
+    if(ok){disarmFocusLock(true);disarmMasterLock(true);toast('Unlocked — the lock is off');if(cb)cb();}
+  };
+  if(SR){
+    try{
+      rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
+      rec.onresult=ev=>{
+        let txt='';for(let i=0;i<ev.results.length;i++)txt+=ev.results[i][0].transcript+' ';
+        const st=$('#unlockStatus');if(st)st.textContent='Heard: “…'+txt.trim().slice(-60)+'”';
+        if(phraseMatches(txt))finish(true);
+      };
+      rec.onerror=ev=>{const st=$('#unlockStatus');if(st)st.textContent='Mic problem ('+ev.error+') — type the phrase below instead.';};
+      rec.onend=()=>{ if(keep&&!done){try{rec.start();}catch(e){}} };
+      rec.start();
+    }catch(e){}
+  }
+  $('#unlockTypedBtn').onclick=()=>{
+    if(normPhrase($('#unlockTyped').value)===FOCUS_PHRASE)finish(true);
+    else toast('That’s not the phrase — it’s: I am done with my test');
+  };
+  $('#unlockTyped').addEventListener('keydown',ev=>{if(ev.key==='Enter')$('#unlockTypedBtn').click();});
+  $('#unlockCancel').onclick=()=>finish(false);
+}
+$('#focusBtn').onclick=()=>{
+  if(focusArmed){openUnlockModal(null);return;}
+  if(_fCount){clearInterval(_fCount);_fCount=null;const b=$('#focusBtn');if(b)b.textContent='🔓 Focus';toast('Focus Lock cancelled');return;}
+  armFocusLock(true);
+};
+
+/* ---- Master lock (appbar button, works on every screen) ---- */
+function renderMasterBtn(){
+  const b=$('#masterBtn');if(!b)return;
+  b.classList.toggle('on',masterLock);
+  b.classList.remove('arming');
+  b.textContent=masterLock?'🔒 Locked in':'🔒 Master';
+}
+function armMasterLock(){
+  if(masterLock)return;
+  fEnsureAudio(); // created on this click so the alarm is allowed later, even from a background tab
+  fLoadAlarmBuffer();
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){ // ask for the mic NOW so speak-to-unlock works later
+    navigator.mediaDevices.getUserMedia({audio:true}).then(s=>s.getTracks().forEach(t=>t.stop()))
+      .catch(()=>toast('Mic blocked — you can still unlock by typing the phrase'));
+  }
+  const btn=$('#masterBtn');
+  const finish=()=>{
+    masterLock=true;_mCount=null;
+    try{localStorage.setItem(MASTER_LS,'1');}catch(e){}
+    renderMasterBtn();
+    toast('Master lock ON — leaving this tab or clicking off the browser sounds the alarm. Say “I am done with my test” to unlock.',4200);
+  };
+  let n=5;clearInterval(_mCount);
+  if(btn){btn.classList.add('arming');btn.textContent='🔒 '+n;}
+  toast('Master lock arms in 5 seconds…');
+  _mCount=setInterval(()=>{n--;
+    if(n<=0){clearInterval(_mCount);finish();}
+    else if(btn)btn.textContent='🔒 '+n;
+  },1000);
+}
+function disarmMasterLock(silent){
+  clearInterval(_mCount);_mCount=null;
+  const was=masterLock;
+  masterLock=false;
+  try{localStorage.removeItem(MASTER_LS);}catch(e){}
+  fStopAlarm(true);renderMasterBtn();
+  if(was&&!silent)toast('Master lock is off');
+}
+$('#masterBtn').onclick=()=>{
+  if(masterLock){openUnlockModal(null);return;}
+  if(_mCount){clearInterval(_mCount);_mCount=null;renderMasterBtn();toast('Master lock cancelled');return;}
+  armMasterLock();
+};
+/* Master lock survives a refresh or accidental tab close: it re-arms itself when the
+   page comes back. (The browser only lets sound start after your first tap/click on
+   the page, so the first interaction quietly re-primes the alarm audio.) */
+try{
+  if(localStorage.getItem(MASTER_LS)){
+    masterLock=true;renderMasterBtn();
+    toast('Master lock is still ON — say “I am done with my test” to unlock.',4000);
+    document.addEventListener('pointerdown',()=>{fEnsureAudio();fLoadAlarmBuffer();},{once:true});
+  }
+}catch(e){}
 
 /* =========================================================================
    5. END TEST → RESULTS
    ========================================================================= */
-$('#endBtn').onclick=()=>{
+function doEndTest(){
   if(!confirm('End the test and see results?'))return;
   endTest();
-};
+}
+$('#endBtn').onclick=()=>{ if(focusGuard(doEndTest))return; doEndTest(); };
 function endTest(){
+  disarmFocusLock(true);
   stopTimer(true);
   // finalize correctness for all
   state.questions.forEach((q,i)=>{
@@ -1771,14 +2139,17 @@ function endTest(){
   state.curSession=session;
   // persist (strip images if storage is too full)
   saveSessionSafe(session);
+  // the finished test now lives in History — free the live slot
+  clearLive();state.liveId=null;
+  saveJSON(LS.last,{session:session.id,at:Date.now()});
   renderResults(session);
   showScreen('results');
-  saveLiveState();
 }
 function saveSessionSafe(session){
   // History keeps stats/answers/marks but not heavy image bytes, so it can't fill storage
   const lean=leanSession(session);
-  let all=loadJSON(LS.sessions,[]);all.unshift(lean);all=all.slice(0,40);
+  let all=loadJSON(LS.sessions,[]).filter(x=>x.id!==lean.id); // replaces its own in-progress save
+  all.unshift(lean);all=all.slice(0,40);
   try{localStorage.setItem(LS.sessions,JSON.stringify(all));}
   catch(e){
     try{localStorage.setItem(LS.sessions,JSON.stringify(all.slice(0,10)));}
@@ -1788,7 +2159,7 @@ function saveSessionSafe(session){
 }
 function buildSession(){
   return {
-    id:uid(), name:state.pdfName||'Untitled', createdAt:Date.now(),
+    id:state.liveId||uid(), name:state.liveName||state.pdfName||'Untitled', createdAt:Date.now(),
     mode:state.mode, timerSeconds:TIMER_SECONDS,
     questions:state.questions.map(q=>({number:q.number,stem:q.stem,options:q.options,correct:q.correct,explanation:q.explanation,images:q.images||[]})),
     order:state.order.slice(),
@@ -1856,15 +2227,20 @@ function importTest(file){
   r.onload=()=>{
     let d=null;try{d=JSON.parse(r.result);}catch(e){}
     if(!d||!Array.isArray(d.questions)||!d.questions.length){toast('That file is not a saved test');return;}
-    state.questions=d.questions;state.questions.forEach((q,i)=>{q.id=q.id||uid();q.idx=i;q.images=q.images||[];});
+    stashLiveToHistory(); // any in-progress test is archived to History first
+    state.questions=d.questions;state.questions.forEach((q,i)=>{q.id=q.id||uid();q.idx=i;q.images=(q.images||[]).filter(okImg);});
     state.pdfName=d.pdfName||'Imported test';applyOptions(d.options);
-    saveLiveQ();
     const p=d.progress;
     if(p&&p.inExam&&Array.isArray(p.order)&&Array.isArray(p.attempts)){
       state.order=p.order;state.attempts=p.attempts;state.cur=Math.min(p.cur||0,p.order.length-1);
       state.mode=p.mode||'test';state.startedAt=p.startedAt||Date.now();state.reviewMode=false;
+      state.liveId=uid();state.liveName=state.pdfName;state.curSession=null;
+      if(d.options&&d.options.focusLock)state._rearmFocus=true;
+      saveLiveQ();
       showScreen('exam');loadQuestion(state.cur);toast('Test imported — resumed where you left off');
     }else{
+      state.order=[];state.attempts=[];state.liveId=null;state.curSession=null;
+      saveLiveQ();
       renderReview();state.screen='review';saveLiveState();showScreen('review');toast('Test imported');
     }
   };
@@ -1932,25 +2308,91 @@ function mdToHtml(md){
 }
 
 /* =========================================================================
-   7. HISTORY
+   7. HISTORY  (finished tests AND in-progress ones)
    ========================================================================= */
+/* Archive the current in-progress test into History so loading another test can
+   never destroy it. Answers, highlights, cross-outs, flags and timing all survive
+   (attempts carry stemHTML). Called before anything replaces the live test. */
+function stashLiveToHistory(){
+  if(!liveTestActive())return;
+  bankTimer();
+  const lean={
+    id:state.liveId, status:'inprogress', name:state.liveName||state.pdfName||'Untitled',
+    createdAt:state.startedAt||Date.now(), savedAt:Date.now(),
+    mode:state.mode, timerSeconds:TIMER_SECONDS, options:collectOptions(),
+    questions:state.questions.map(q=>({number:q.number,stem:q.stem,options:q.options,correct:q.correct,explanation:q.explanation,images:[],hadImage:!!(q.images&&q.images.length)})),
+    order:state.order.slice(), cur:state.cur,
+    attempts:state.attempts
+  };
+  let all=loadJSON(LS.sessions,[]).filter(x=>x.id!==lean.id);
+  all.unshift(lean);all=all.slice(0,40);
+  try{localStorage.setItem(LS.sessions,JSON.stringify(all));}catch(e){}
+  cloudSaveSession(lean);
+}
+/* Pick an archived in-progress test back up exactly where it was left */
+function resumeInProgressSession(id){
+  const s=loadJSON(LS.sessions,[]).find(x=>x.id===id);if(!s)return;
+  if(state.liveId&&state.liveId!==s.id)stashLiveToHistory(); // park the current one first
+  state.questions=s.questions.map((q,i)=>({id:uid(),idx:i,number:q.number,stem:q.stem,options:q.options,correct:q.correct,explanation:q.explanation,images:[]}));
+  state.pdfName=s.name||'Untitled';state.liveName=s.name||'Untitled';applyOptions(s.options);
+  state.order=(s.order||[]).slice();state.attempts=s.attempts||[];
+  state.cur=Math.min(s.cur||0,Math.max(0,state.order.length-1));
+  state.mode=s.mode||'test';state.startedAt=s.createdAt||Date.now();state.reviewMode=false;
+  state.liveId=s.id;state.curSession=null;
+  if(s.options&&s.options.focusLock)state._rearmFocus=true; // Focus Lock comes back on with the test
+  saveLiveQ();
+  returnScreen=null;
+  showScreen('exam');loadQuestion(state.cur);
+  toast('Resumed — everything is exactly as you left it');
+}
+function sessionProgress(s){ // answered count for an in-progress save
+  const N=(s.order||[]).length;let answered=0;
+  (s.order||[]).forEach(qi=>{const a=(s.attempts||[])[qi];if(a&&a.selected)answered++;});
+  return {N,answered,pct:N?Math.round(100*answered/N):0};
+}
 function renderHistory(){
   const sub=$('#historySub');
-  if(sub)sub.textContent = (fbEnabled&&curUser) ? 'Synced to your account ('+curUser.email+'). Open a past session to re-review or re-analyze.' :
+  if(sub)sub.textContent = (fbEnabled&&curUser) ? 'Synced to your account ('+curUser.email+'). In-progress tests are saved here too — resume any time.' :
     fbEnabled ? 'Sign in to sync your tests to your account and access them from any device.' :
-    'Saved on this computer only. Open a past session to re-review or re-analyze.';
-  const all=loadJSON(LS.sessions,[]);const box=$('#historyList');
-  if(!all.length){box.innerHTML='<p class="note">No saved sessions yet.</p>';return;}
-  box.innerHTML=all.map(s=>{
-    const N=s.order.length;let c=0,g=0;s.order.forEach(qi=>{const a=s.attempts[qi],q=s.questions[qi];if(q.correct){g++;if(a.correctSelected)c++;}});
+    'Saved on this computer only. In-progress tests are saved here too — resume any time.';
+  const box=$('#historyList');
+  let html='';
+  // the live in-progress test, straight from memory — always first
+  if(liveTestActive()){
+    const N=state.order.length;let answered=0;state.order.forEach(qi=>{const a=state.attempts[qi];if(a&&a.selected)answered++;});
+    const pct=N?Math.round(100*answered/N):0;
+    html+=`<div class="card pad" style="margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-color:var(--accent);background:var(--wash)">
+      <div style="flex:1;min-width:180px"><b>▶ In progress — ${esc(state.liveName||state.pdfName||'Untitled')}</b>
+      <div class="note">${answered} of ${N} answered (${pct}%) · item ${state.cur+1} · answers, highlights and cross-outs saved</div></div>
+      <button class="btn sm" id="histResumeLive">Resume</button>
+    </div>`;
+  }
+  const all=loadJSON(LS.sessions,[]).filter(s=>s.id!==state.liveId); // the live one is shown above
+  if(!all.length&&!liveTestActive()){box.innerHTML='<p class="note">No saved sessions yet.</p>';return;}
+  html+=all.map(s=>{
     const d=new Date(s.createdAt);
+    if(s.status==='inprogress'){
+      const p=sessionProgress(s);
+      const saved=s.savedAt?new Date(s.savedAt):d;
+      return `<div class="card pad" style="margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-color:var(--flag)">
+        <div style="flex:1;min-width:180px"><b>⏸ In progress — ${esc(s.name)}</b>
+        <div class="note">saved ${saved.toLocaleString()} · ${p.answered} of ${p.N} answered (${p.pct}%) · answers &amp; marks kept</div></div>
+        <button class="btn sm" data-resume="${esc(s.id)}">Resume</button>
+        <button class="btn ghost sm" data-del="${esc(s.id)}">Delete</button>
+      </div>`;
+    }
+    const N=(s.order||[]).length;let c=0,g=0;(s.order||[]).forEach(qi=>{const a=s.attempts[qi],q=s.questions[qi];if(q&&q.correct){g++;if(a&&a.correctSelected)c++;}});
     return `<div class="card pad" style="margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="flex:1;min-width:180px"><b>${esc(s.name)}</b><div class="note">${d.toLocaleString()} · ${N} items · ${g?Math.round(100*c/g)+'%':'ungraded'} · ${s.mode}${s.analysis?' · analyzed':''}</div></div>
-      <button class="btn sm" data-redo="${s.id}">Redo</button>
-      <button class="btn ghost sm" data-open="${s.id}">Open</button>
-      <button class="btn ghost sm" data-del="${s.id}">Delete</button>
+      <div style="flex:1;min-width:180px"><b>${esc(s.name)}</b><div class="note">${d.toLocaleString()} · ${N} items · ${g?Math.round(100*c/g)+'%':'ungraded'} · ${esc(s.mode||'')}${s.analysis?' · analyzed':''}</div></div>
+      <button class="btn sm" data-redo="${esc(s.id)}">Redo</button>
+      <button class="btn ghost sm" data-open="${esc(s.id)}">Open</button>
+      <button class="btn ghost sm" data-del="${esc(s.id)}">Delete</button>
     </div>`;
   }).join('');
+  box.innerHTML=html;
+  const lr=$('#histResumeLive');
+  if(lr)lr.onclick=()=>{returnScreen=null;showScreen('exam');loadQuestion(state.cur);};
+  box.querySelectorAll('[data-resume]').forEach(b=>b.onclick=()=>resumeInProgressSession(b.dataset.resume));
   box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openSession(b.dataset.open));
   box.querySelectorAll('[data-redo]').forEach(b=>b.onclick=()=>redoSession(b.dataset.redo));
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
@@ -1962,11 +2404,11 @@ function renderHistory(){
 }
 function redoSession(id){
   const s=loadJSON(LS.sessions,[]).find(x=>x.id===id);if(!s)return;
-  const hasLive=!!localStorage.getItem(LS.liveQ);
-  if(hasLive && !confirm('Load this test for a fresh attempt? This replaces the test currently loaded in the app (use ⤓ Save file first if you want to keep it).'))return;
+  stashLiveToHistory(); // any in-progress test is archived to History first — nothing is lost
+  state.liveId=null;
   // load the questions as a brand-new test; attempts are reset when you press Start
   state.questions=s.questions.map((q,i)=>({id:uid(),idx:i,number:q.number,stem:q.stem,
-    options:q.options,correct:q.correct,explanation:q.explanation,images:q.images||[]}));
+    options:q.options,correct:q.correct,explanation:q.explanation,images:(q.images||[]).filter(okImg)}));
   state.pdfName=s.name||'Redo';
   state.order=[];state.attempts=[];state.curSession=null;state.reviewMode=false;
   if(s.mode)$('#testMode').value=s.mode;
@@ -1979,7 +2421,9 @@ function redoSession(id){
 }
 function openSession(id){
   const s=loadJSON(LS.sessions,[]).find(x=>x.id===id);if(!s)return;
+  if(s.status==='inprogress'){resumeInProgressSession(id);return;}
   state.curSession=s;
+  saveJSON(LS.last,{session:s.id,at:Date.now()});
   renderResults(s);
   if(s.analysis)$('#analysisOut').innerHTML=mdToHtml(s.analysis);
   showScreen('results');
