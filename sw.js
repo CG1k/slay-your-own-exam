@@ -1,11 +1,12 @@
 /* Slay Your Own Exam — offline service worker */
-const CACHE = 'slayexam-v2';
+const CACHE = 'slayexam-v3';
 const SHELL = [
   './',
   './index.html',
   './flashcards.html',
   './study-buddy.html',
   './master-lock.js',
+  './alarm.m4a',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
