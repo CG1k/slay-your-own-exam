@@ -23,9 +23,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # no `environment:` declaration — the auto-created github-pages environment
+    # only lets main deploy, which would block the outage-fix branch; the job
+    # works without it and main deploys keep working after the merge
     steps:
       - uses: actions/checkout@v4
       - name: Setup Pages (re-enables the site if it was disabled)
