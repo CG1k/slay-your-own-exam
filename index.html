@@ -421,8 +421,24 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
 
   <div class="card pad" style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <button class="btn ghost sm" id="importBtn">Import a saved test (.json)</button>
-    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
-    <span class="note" style="flex:1;min-width:220px">Switching to a newer version of this app? Browser saves don't carry between files — so <b>Export your test</b> (from the review or test screen), then import it here. Nothing lost.</span>
+    <input type="file" id="importFile" accept="application/json,.json,.txt,text/plain" class="hidden">
+    <span class="note" style="flex:1;min-width:220px">Switching to a newer version of this app? Browser saves don't carry between files — so <b>Export your test</b> (from the review or test screen), then import it here. Nothing lost. This also imports a <b>.json</b> or <b>.txt</b> file made with the free-chatbot method below.</span>
+  </div>
+
+  <div class="card pad" style="margin-top:14px">
+    <div class="row" style="align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <b>No API key? Convert your PDF with any free chatbot</b>
+      <button class="btn ghost sm" id="copyConvPrompt">Copy the prompt</button>
+    </div>
+    <p class="note" style="margin-top:8px">Prefer not to pay for an API key? Turn your PDF into an importable test with the <b>free</b> version of ChatGPT, Claude, Gemini or Copilot — no key, no subscription:</p>
+    <ol class="note" style="margin:6px 0 10px 18px;line-height:1.7">
+      <li><b>Copy the prompt</b> below.</li>
+      <li>Open any AI chatbot, paste the prompt, and <b>attach your question-bank PDF</b> (or paste its text) in the same message.</li>
+      <li>It replies with JSON. Copy the <b>entire</b> reply and save it as a file ending in <b>.json</b> (or <b>.txt</b>) — e.g. <code>my-test.json</code>.</li>
+      <li>Click <b>“Import a saved test (.json)”</b> above and pick that file. Review the questions, then start.</li>
+    </ol>
+    <textarea id="convPrompt" readonly rows="8" style="font-family:var(--mono);font-size:12.5px;line-height:1.5;resize:vertical"></textarea>
+    <p class="note" style="margin-top:8px">Everything still stays in your browser — the file you import never leaves your device. The chatbot only ever sees the PDF <i>you</i> give it.</p>
   </div>
 
   <div id="extractBox" class="hidden" style="margin-top:16px">
@@ -2607,13 +2623,45 @@ function exportTest(){
   download((state.pdfName||'qbank-test').replace(/\.pdf$/i,'')+'.qbank.json',JSON.stringify(payload));
   toast('Saved your test to a file');
 }
+// Accept a saved test OR raw JSON a chatbot produced (may have code fences / stray prose,
+// and options may be objects, plain strings, or an A/B/C map). Return null if unusable.
+function normalizeImportedQuestions(d){
+  let qs=Array.isArray(d&&d.questions)?d.questions:(Array.isArray(d)?d:null);
+  if(!qs)return null;
+  const out=[];
+  qs.forEach(q=>{
+    if(!q)return;
+    const stem=String(q.stem||q.question||q.text||'').trim();
+    let opts=q.options||q.choices||q.answers;
+    if(opts&&!Array.isArray(opts)&&typeof opts==='object')            // {"A":"…","B":"…"}
+      opts=Object.keys(opts).map(k=>({letter:k,text:opts[k]}));
+    if(!Array.isArray(opts))return;
+    const options=opts.map((o,j)=>{
+      const letter=(o&&o.letter)||String.fromCharCode(65+j);
+      let text=o&&typeof o==='object'?(o.text!=null?o.text:o.value):o;   // object or bare string
+      text=String(text==null?'':text).replace(/^\s*[A-Ea-e][).\.:]\s*/,''); // drop a leading "A) " if present
+      return {letter:String(letter).toUpperCase(),text};
+    }).filter(o=>o.text!=='');
+    if(!stem||options.length<2)return;
+    const corr=q.correct||q.answer||q.correctAnswer;
+    out.push({number:q.number!=null?String(q.number):'',stem,options,
+      correct:corr&&/^[A-Ea-e]$/.test(String(corr).trim())?String(corr).trim().toUpperCase():null,
+      explanation:String(q.explanation||q.rationale||'')});
+  });
+  return out.length?out:null;
+}
 function importTest(file){
   const r=new FileReader();
   r.onload=()=>{
     let d=null;try{d=JSON.parse(r.result);}catch(e){}
-    if(!d||!Array.isArray(d.questions)||!d.questions.length){toast('That file is not a saved test');return;}
+    if(!d)d=parseJSON(String(r.result||''));            // tolerate code fences / leading prose
+    let qs=null;
+    if(d&&Array.isArray(d.questions)&&d.questions.length&&d.questions[0]&&d.questions[0].id!=null)qs=d.questions; // a real saved test
+    else qs=normalizeImportedQuestions(d);              // otherwise coerce whatever shape we got
+    if(!qs||!qs.length){toast('Could not read questions from that file');return;}
+    if(!d||!Array.isArray(d.questions))d={questions:qs};
     stashLiveToHistory(); // any in-progress test is archived to History first
-    state.questions=d.questions;state.questions.forEach((q,i)=>{q.id=q.id||uid();q.idx=i;q.images=(q.images||[]).filter(okImg);});
+    state.questions=qs;state.questions.forEach((q,i)=>{q.id=q.id||uid();q.idx=i;q.images=(q.images||[]).filter(okImg);});
     state.pdfName=d.pdfName||'Imported test';applyOptions(d.options);
     const p=d.progress;
     if(p&&p.inExam&&Array.isArray(p.order)&&Array.isArray(p.attempts)){
@@ -2635,6 +2683,43 @@ $('#exportTestBtn')&&($('#exportTestBtn').onclick=exportTest);
 $('#exportTestBtn2')&&($('#exportTestBtn2').onclick=exportTest);
 $('#importBtn')&&($('#importBtn').onclick=()=>$('#importFile').click());
 $('#importFile')&&($('#importFile').onchange=e=>{if(e.target.files[0])importTest(e.target.files[0]);e.target.value='';});
+
+/* The copy-paste prompt for turning a PDF into an importable test with any free chatbot —
+   no API key needed. Its JSON shape must match what importTest() accepts. */
+const CONVERT_PROMPT=`You are converting a question bank into a JSON file for a quiz app.
+
+I am giving you a question-bank PDF (or its text/images). Extract EVERY multiple-choice question VERBATIM. Do not rewrite, paraphrase, summarize, translate, correct, or invent anything — copy the wording exactly, including any lab-value tables (keep each lab on its own line inside the stem).
+
+Reply with ONE JSON object and NOTHING else: no greeting, no explanation, no markdown, no code fences. It must be valid JSON in exactly this shape:
+
+{
+  "questions": [
+    {
+      "number": "printed question number, or empty string",
+      "stem": "the full patient vignette AND the lead-in question, verbatim",
+      "options": [
+        { "letter": "A", "text": "verbatim option text" },
+        { "letter": "B", "text": "verbatim option text" }
+      ],
+      "correct": "letter of the correct answer if the source gives one, otherwise null",
+      "explanation": "verbatim explanation/rationale if the source has one, otherwise empty string"
+    }
+  ]
+}
+
+Rules:
+- Include ALL questions, in their original order. Do not skip or merge any.
+- Give each question its options lettered A, B, C, … exactly as printed (2 to 5 options).
+- Put a single uppercase letter A-E in "correct" ONLY if the source states the answer; otherwise use null. Never guess the answer.
+- "number" and "explanation" are strings ("" if none). "correct" is a letter or null.
+- Do not include images. If a question relies on a figure you cannot include, still capture all of its text.
+
+Output only the JSON. After the JSON, do nothing else.`;
+(function(){const ta=$('#convPrompt');if(ta){ta.value=CONVERT_PROMPT;ta.addEventListener('focus',()=>ta.select());}})();
+$('#copyConvPrompt')&&($('#copyConvPrompt').onclick=async()=>{
+  try{await navigator.clipboard.writeText(CONVERT_PROMPT);toast('Prompt copied — paste it into any AI chatbot with your PDF');}
+  catch(e){const ta=$('#convPrompt');if(ta){ta.focus();ta.select();try{document.execCommand('copy');toast('Prompt copied');}catch(_){toast('Select the prompt text and copy it');}}}
+});
 
 /* =========================================================================
    6. ANALYZE WITH CLAUDE
