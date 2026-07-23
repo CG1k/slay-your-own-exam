@@ -23,13 +23,6 @@ def _normalize_whitelist(raw: str, quote_currency: str) -> tuple[str, ...]:
             continue
         if "-" not in entry:
             entry = f"{entry}-{quote_currency}"
-        elif entry.split("-", 1)[1] != quote_currency:
-            # One quote currency per agent: a second quote (e.g. BTC-USDC next
-            # to BTC-USD) would double-count the shared base balance.
-            raise ConfigError(
-                f"whitelist entry {entry!r} does not use the configured quote currency "
-                f"{quote_currency}; set QUOTE_CURRENCY instead of mixing quotes"
-            )
         products.append(entry)
     if not products:
         raise ConfigError("PRODUCT_WHITELIST is empty; the agent needs at least one tradable product")
@@ -56,10 +49,6 @@ class Config:
     # Fee gate: minimum expected move (%) for a trade to be worth its fees.
     # A taker round trip costs ~1.2-1.5% all-in, so the default demands 1.5%.
     fee_gate_pct: float
-    # When true, the analyst cannot change risk mode or re-enable trading —
-    # only the operator can, via env/restart. Off by default (the analyst is
-    # designed to supervise autonomously); turn on for extra hardening.
-    lock_risk_controls: bool
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> "Config":
@@ -109,12 +98,9 @@ class Config:
         if not 0 <= paper_fee_rate < 0.05:
             raise ConfigError(f"PAPER_FEE_RATE must be in [0, 0.05), got {paper_fee_rate}")
 
-        data_dir = Path(env.get("AGENT_DATA_DIR", Path.home() / ".coinbase-trading-agent")).expanduser()
+        data_dir = Path(env.get("AGENT_DATA_DIR", Path.home() / ".coinbase-trading-agent"))
 
-        def _flag(name: str, default: str) -> bool:
-            return env.get(name, default).strip().lower() not in ("0", "false", "no")
-
-        require_confirmation = _flag("REQUIRE_CONFIRMATION", "1")
+        require_confirmation = env.get("REQUIRE_CONFIRMATION", "1").strip().lower() not in ("0", "false", "no")
 
         return cls(
             trading_mode=trading_mode,
@@ -132,5 +118,4 @@ class Config:
             proposal_ttl_minutes=_positive_float("PROPOSAL_TTL_MINUTES", "15"),
             challenge_window_hours=_positive_float("CHALLENGE_WINDOW_HOURS", "24"),
             fee_gate_pct=_positive_float("FEE_GATE_PCT", "1.5"),
-            lock_risk_controls=_flag("LOCK_RISK_CONTROLS", "0"),
         )

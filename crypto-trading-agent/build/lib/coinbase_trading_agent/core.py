@@ -78,9 +78,6 @@ class AgentCore:
                 continue
             price = self.exchange.get_product(product_id).price
             if qty * price < DUST_USD:
-                # Not a position, but keep the tracked basis honest so stale
-                # cost can't poison the next buy's P&L.
-                self.store.reconcile_down(product_id, qty)
                 continue
             positions[product_id] = (qty, price)
             tracked_qty, _ = self.store.get_position(product_id)
@@ -189,11 +186,6 @@ class AgentCore:
     # -- controls ---------------------------------------------------------
 
     def set_risk_mode(self, mode: str) -> dict:
-        if self.config.lock_risk_controls:
-            raise guardrails.GuardrailViolation(
-                "risk controls are locked (LOCK_RISK_CONTROLS=1); only the operator can "
-                "change the risk mode via the environment"
-            )
         try:
             risk_mode = RiskMode((mode or "").strip().lower())
         except ValueError:
@@ -202,21 +194,6 @@ class AgentCore:
         return {"risk_mode": risk_mode.value, "risk_params": RISK_PROFILES[risk_mode].__dict__}
 
     def set_trading_enabled(self, enabled: bool, reason: str = "") -> dict:
-        reason = (reason or "").strip()
-        if enabled:
-            # Disabling is always allowed; re-enabling can be locked down, and
-            # un-tripping the circuit breaker demands a written diagnosis.
-            if self.config.lock_risk_controls:
-                raise guardrails.GuardrailViolation(
-                    "risk controls are locked (LOCK_RISK_CONTROLS=1); only the operator can "
-                    "re-enable trading"
-                )
-            current_reason = self.store.disabled_reason() or ""
-            if "circuit breaker" in current_reason and len(reason) < 20:
-                raise ValueError(
-                    "re-enabling after a circuit-breaker trip requires a reason explaining "
-                    "what was reviewed (>= 20 characters)"
-                )
         self.store.set_trading_enabled(enabled, reason or ("manually disabled" if not enabled else ""))
         return {
             "trading_enabled": self.store.trading_enabled(),
@@ -314,9 +291,7 @@ class AgentCore:
         )
         decision.reasons = tech_notes + decision.reasons
 
-        # The technical size multiplier applies to BUYS ONLY: shrinking a sell
-        # would shrink a risk-reducing exit, which increases risk. (Sells are
-        # still gated by the adjusted confidence above.)
+        # Apply the technical size multiplier, then re-check the minimum.
         if decision.action == "buy" and size_multiplier < 1.0:
             decision.quote_size *= size_multiplier
             if decision.quote_size < self.config.min_trade_usd:
@@ -325,6 +300,8 @@ class AgentCore:
                     decision.reasons
                     + ["size after technical reduction fell below the minimum; not trading"],
                 )
+        elif decision.action == "sell" and size_multiplier < 1.0:
+            decision.base_size *= size_multiplier
 
         if decision.trip_breaker:
             self.store.set_trading_enabled(False, decision.reasons[-1])
@@ -387,74 +364,17 @@ class AgentCore:
                 f"proposal {proposal_id} expired; submit a fresh prediction if the thesis still holds"
             )
 
-        # Consume the proposal BEFORE the order call: if the order outcome ends
-        # up unknown, a retry must not be able to execute it twice.
-        self.store.resolve_proposal(proposal["id"], "confirmed", "executing")
-
-        # Re-run the risk checks against CURRENT state. Proposals are sized at
-        # submit time; without this, stacking several proposals and confirming
-        # them all would bypass the daily cap, cooldown, and exposure caps.
-        recheck = self._recheck_proposal(proposal, now)
-        if recheck.action != proposal["action"]:
-            self.store.resolve_proposal(
-                proposal["id"], "rejected", "risk re-check at confirmation refused it: "
-                + "; ".join(recheck.reasons)
-            )
-            return {
-                "proposal_id": proposal["id"],
-                "executed": False,
-                "status": "rejected",
-                "reasons": recheck.reasons,
-            }
-
         decision = Decision(
             action=proposal["action"],
-            reasons=[f"confirmed proposal {proposal['id']}"] + recheck.reasons,
-            # Never execute larger than proposed OR larger than the re-check allows.
-            quote_size=min(proposal["quote_size"], recheck.quote_size) if recheck.quote_size else proposal["quote_size"],
-            base_size=min(proposal["base_size"], recheck.base_size) if recheck.base_size else proposal["base_size"],
+            reasons=[f"confirmed proposal {proposal['id']}"],
+            quote_size=proposal["quote_size"],
+            base_size=proposal["base_size"],
         )
         fill, realized = self._execute(
             proposal["product_id"], decision, prediction_id=proposal["prediction_id"]
         )
         self.store.resolve_proposal(proposal["id"], "confirmed", "analyst confirmed", fill.order_id)
         return {"proposal_id": proposal["id"], "executed": True, "fill": fill.__dict__, "realized_pnl": realized}
-
-    def _recheck_proposal(self, proposal: dict, now: float) -> Decision:
-        stored = self.store.get_prediction(proposal["prediction_id"])
-        if not stored:
-            return Decision("no_action", ["original prediction not found"])
-        pred = Prediction(
-            product_id=stored["product_id"],
-            direction=Direction(stored["direction"]),
-            confidence=stored["confidence"],
-            horizon_hours=stored["horizon_hours"],
-            thesis=stored["thesis"],
-            id=stored["id"],
-            created_at=stored["created_at"],
-        )
-        snapshot = self._snapshot()
-        view = self._tech_view(pred.product_id)
-        adj_confidence, _, _ = strategy.adjust_for_technicals(pred.direction, pred.confidence, view)
-        adjusted = Prediction(
-            product_id=pred.product_id, direction=pred.direction, confidence=adj_confidence,
-            horizon_hours=pred.horizon_hours, thesis=pred.thesis, id=pred.id,
-            created_at=pred.created_at,
-        )
-        return risk.evaluate(
-            adjusted,
-            self._params(),
-            snapshot,
-            trades_today=self.store.trades_today(now),
-            realized_pnl_today=self.store.realized_pnl_today(now),
-            last_trade_ts=self.store.last_trade_ts(pred.product_id),
-            now=now,
-            whitelist=self.config.product_whitelist,
-            max_trade_usd=self.config.max_trade_usd,
-            min_trade_usd=self.config.min_trade_usd,
-            trading_enabled=self.store.trading_enabled(),
-            disabled_reason=self.store.disabled_reason(),
-        )
 
     def reject_decision(self, proposal_id: str, reason: str) -> dict:
         proposal = self.store.get_proposal((proposal_id or "").strip())
@@ -568,25 +488,14 @@ class AgentCore:
             if exit_reason:
                 action_name, why = exit_reason
                 decision = Decision("sell", [why], base_size=qty)
-                # One failing exit must not abort the protective sweep for the
-                # remaining positions; the breaker is evaluated once at the end
-                # so a mid-sweep trip can't block the other stop-losses either.
-                try:
-                    fill, realized = self._execute(
-                        product_id, decision, prediction_id=None, counts_toward_cap=False,
-                        note=why, check_breaker=False,
-                    )
-                    actions.append(
-                        {"action": action_name, "product_id": product_id,
-                         "drawdown": round(drawdown, 4), "held_days": round(held_days, 1),
-                         "fill": fill.__dict__, "realized_pnl": realized}
-                    )
-                except (ExchangeError, guardrails.GuardrailViolation) as exc:
-                    actions.append(
-                        {"action": f"{action_name}_FAILED", "product_id": product_id,
-                         "drawdown": round(drawdown, 4), "held_days": round(held_days, 1),
-                         "error": str(exc)}
-                    )
+                fill, realized = self._execute(
+                    product_id, decision, prediction_id=None, counts_toward_cap=False, note=why,
+                )
+                actions.append(
+                    {"action": action_name, "product_id": product_id,
+                     "drawdown": round(drawdown, 4), "held_days": round(held_days, 1),
+                     "fill": fill.__dict__, "realized_pnl": realized}
+                )
         # Post-sweep breaker check: stop-losses may have pushed us past the daily limit.
         self._maybe_trip_breaker(now)
         return {"proposals_expired": expired, "actions": actions,
@@ -616,7 +525,6 @@ class AgentCore:
         prediction_id: str | None,
         counts_toward_cap: bool = True,
         note: str = "",
-        check_breaker: bool = True,
     ) -> tuple[Fill, float | None]:
         now = self._now()
         if decision.action == "buy":
@@ -649,13 +557,8 @@ class AgentCore:
             fill = self.exchange.market_sell(product_id, base)
             realized = self.store.apply_sell(product_id, fill.base_size, fill.quote_size)
 
-        if fill.estimated:
-            note = (note + " | " if note else "") + (
-                "FILL ESTIMATED: order placed but fill unconfirmed; verify on Coinbase"
-            )
         self.store.record_trade(
             fill, prediction_id, realized, counts_toward_cap=counts_toward_cap, note=note, now=now
         )
-        if check_breaker:
-            self._maybe_trip_breaker(now)
+        self._maybe_trip_breaker(now)
         return fill, round(realized, 2) if realized is not None else None

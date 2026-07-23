@@ -1,0 +1,2 @@
+[console_scripts]
+coinbase-trading-agent = coinbase_trading_agent.server:main

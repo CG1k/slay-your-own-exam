@@ -138,11 +138,6 @@ def evaluate(
     if (qty * price) < 2 * min_trade_usd or (qty - base) * price < min_trade_usd:
         reasons.append("remaining position would be dust; selling the full position instead")
         base, notional = qty, qty * price
-    elif notional < min_trade_usd:
-        # Fee-wasteful micro-sell: bump to the minimum notional instead.
-        base = min(qty, min_trade_usd / price)
-        notional = base * price
-        reasons.append(f"sell bumped to the {min_trade_usd:.2f} minimum notional")
     return Decision(
         "sell",
         reasons + [f"SELL {base:.8f} {pred.product_id.split('-')[0]} (~{notional:.2f})"],

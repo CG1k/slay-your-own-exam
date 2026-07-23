@@ -93,3 +93,19 @@ def test_prediction_log_roundtrip(store):
     rows = store.recent_predictions()
     assert rows[0]["product_id"] == "ETH-USD"
     assert rows[0]["decision"]["action"] == "no_action"
+
+
+def test_apply_sell_residue_closes_position(store):
+    store.apply_buy("BTC-USD", 0.01, 500.0, now=NOW)
+    # increment rounding sells a hair less than the full position
+    store.apply_sell("BTC-USD", 0.01 - 1e-11, proceeds=520.0)
+    qty, cost = store.get_position("BTC-USD")
+    assert qty == 0.0 and cost == 0.0
+    assert store.position_opened_at("BTC-USD") is None
+
+
+def test_opened_at_set_and_kept(store):
+    store.apply_buy("BTC-USD", 0.01, 500.0, now=NOW)
+    assert store.position_opened_at("BTC-USD") == NOW
+    store.apply_buy("BTC-USD", 0.01, 500.0, now=NOW + 1000)
+    assert store.position_opened_at("BTC-USD") == NOW  # adding keeps the clock

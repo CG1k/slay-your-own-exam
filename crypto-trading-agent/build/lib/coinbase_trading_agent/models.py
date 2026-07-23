@@ -116,9 +116,6 @@ class Fill:
     quote_size: float
     price: float
     fee: float
-    # True when the order was placed but the fill details could not be fetched;
-    # numbers are best-effort estimates and must be verified on the exchange.
-    estimated: bool = False
 
 
 @dataclass

@@ -65,11 +65,9 @@ def validate_order(
         raise GuardrailViolation("Refusing order: trading is disabled (kill switch / circuit breaker)")
     if notional_usd <= 0:
         raise GuardrailViolation(f"Refusing order with non-positive notional {notional_usd}")
-    # Only buys get a dollar cap. Sells are risk-reducing exits of assets the
-    # account already holds (size is clamped to the actual balance upstream);
-    # capping them would leave the agent unable to exit a large position.
-    if side == "BUY" and notional_usd > max_trade_usd:
+    # Sells are exits and may exceed the per-trade buy cap, but never sanity bounds.
+    cap = max_trade_usd if side == "BUY" else max_trade_usd * 100
+    if notional_usd > cap:
         raise GuardrailViolation(
-            f"Refusing BUY of ${notional_usd:,.2f} on {product_id}: exceeds the hard cap "
-            f"${max_trade_usd:,.2f}"
+            f"Refusing {side} of ${notional_usd:,.2f} on {product_id}: exceeds the hard cap ${cap:,.2f}"
         )

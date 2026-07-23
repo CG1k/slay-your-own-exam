@@ -207,3 +207,94 @@ def test_set_risk_mode(store, clock):
     assert out["risk_params"]["min_confidence"] == 0.55
     with pytest.raises(ValueError):
         core.set_risk_mode("yolo")
+
+
+def test_proposal_stacking_cannot_bypass_caps(store, clock):
+    """Stacked proposals re-check risk at confirmation: the daily cap, cooldown,
+    and exposure limits apply at execute time, not just at submit time."""
+    config = make_config(REQUIRE_CONFIRMATION="1")
+    core, exchange, _ = make_core(store, clock, config=config)
+    first = core.submit_prediction("BTC-USD", "rise", 0.9, 24, THESIS, 5.0)
+    second = core.submit_prediction("BTC-USD", "rise", 0.9, 24, THESIS, 5.0)
+    assert "proposal" in first and "proposal" in second
+
+    assert core.confirm_decision(first["proposal"]["id"])["executed"] is True
+    # second confirm: same product traded seconds ago -> cooldown refuses it
+    out = core.confirm_decision(second["proposal"]["id"])
+    assert out["executed"] is False and out["status"] == "rejected"
+    assert any("cooldown" in r for r in out["reasons"])
+    # and the proposal is consumed — cannot be retried
+    with pytest.raises(ValueError, match="already"):
+        core.confirm_decision(second["proposal"]["id"])
+
+
+def test_maintenance_sweep_survives_one_failing_exit(store, clock):
+    from coinbase_trading_agent.exchange import ExchangeError
+
+    core, exchange, prices = make_core(store, clock)
+    core.submit_prediction("BTC-USD", "rise", 0.95, 24, THESIS, 5.0)
+    core.submit_prediction("ETH-USD", "rise", 0.95, 24, THESIS, 5.0)
+    prices["BTC-USD"] *= 0.80
+    prices["ETH-USD"] *= 0.80
+
+    original_sell = exchange.market_sell
+
+    def failing_btc_sell(product_id, base_size):
+        if product_id == "BTC-USD":
+            raise ExchangeError("simulated outage")
+        return original_sell(product_id, base_size)
+
+    exchange.market_sell = failing_btc_sell
+    report = core.run_maintenance()
+    actions = {a["product_id"]: a["action"] for a in report["actions"]}
+    assert actions["BTC-USD"] == "stop_loss_exit_FAILED"
+    assert actions["ETH-USD"] == "stop_loss_exit"  # sweep continued past the failure
+
+
+def test_breaker_reenable_requires_written_reason(store, clock):
+    core, exchange, prices = make_core(store, clock)
+    core.submit_prediction("BTC-USD", "rise", 0.95, 24, THESIS, 5.0)
+    prices["BTC-USD"] = 50_000.0 * 0.01
+    core.run_maintenance()
+    assert core.get_status()["trading_enabled"] is False
+    with pytest.raises(ValueError, match="reason"):
+        core.set_trading_enabled(True, "ok")
+    core.set_trading_enabled(True, "Reviewed the journal: BTC flash-crash stop-out, thesis process was sound.")
+    assert core.get_status()["trading_enabled"] is True
+
+
+def test_lock_risk_controls(store, clock):
+    config = make_config(LOCK_RISK_CONTROLS="1")
+    core, _, _ = make_core(store, clock, config=config)
+    with pytest.raises(GuardrailViolation):
+        core.set_risk_mode("aggressive")
+    core.set_trading_enabled(False, "halting is always allowed")
+    with pytest.raises(GuardrailViolation):
+        core.set_trading_enabled(True)
+
+
+def test_full_exit_resets_position_clock(store, clock):
+    """A quantized 'full' exit must not leave residue that carries the old
+    opened_at onto the next position (which would trigger spurious time exits)."""
+    core, exchange, prices = make_core(store, clock)
+    core.submit_prediction("BTC-USD", "rise", 0.95, 24, THESIS, 5.0)
+    core.close_position("BTC-USD", 1.0, "flat")
+    assert store.get_position("BTC-USD") == (0.0, 0.0)
+    assert store.position_opened_at("BTC-USD") is None
+
+    clock.advance(40 * 86400)  # long after the original open
+    core.submit_prediction("BTC-USD", "rise", 0.95, 24, THESIS, 5.0)
+    report = core.run_maintenance()
+    assert not any(a["action"] == "max_hold_time_exit" for a in report["actions"])
+
+
+def test_config_rejects_mixed_quotes():
+    from coinbase_trading_agent.config import ConfigError
+
+    with pytest.raises(ConfigError, match="quote"):
+        make_config(PRODUCT_WHITELIST="BTC-USD,BTC-USDC")
+
+
+def test_config_expands_tilde(tmp_path, monkeypatch):
+    cfg = make_config(AGENT_DATA_DIR="~/agent-data")
+    assert "~" not in str(cfg.data_dir)

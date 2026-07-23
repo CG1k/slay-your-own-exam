@@ -135,16 +135,6 @@ class Store:
         )
         self._conn.commit()
 
-    def get_prediction(self, prediction_id: str) -> dict | None:
-        row = self._conn.execute(
-            "SELECT * FROM predictions WHERE id = ?", (prediction_id,)
-        ).fetchone()
-        if not row:
-            return None
-        d = dict(row)
-        d["decision"] = json.loads(d.pop("decision_json"))
-        return d
-
     def recent_predictions(self, limit: int = 20) -> list[dict]:
         rows = self._conn.execute(
             "SELECT * FROM predictions ORDER BY created_at DESC LIMIT ?", (max(1, min(limit, 200)),)
@@ -345,15 +335,8 @@ class Store:
         tracked = min(qty, base_size)
         avg_cost = cost / qty
         realized = (proceeds / base_size) * tracked - avg_cost * tracked
-        remaining = qty - tracked
-        # Exchange increments round sell sizes down, so a "full" exit can leave
-        # a sub-increment sliver; treat it as closed so opened_at resets and the
-        # max-hold clock doesn't leak onto the next position.
-        if remaining <= max(1e-9, qty * 1e-6):
-            remaining = 0.0
         self._put_position(
-            product_id, remaining, cost - avg_cost * tracked if remaining else 0.0,
-            self._current_opened_at(product_id),
+            product_id, qty - tracked, cost - avg_cost * tracked, self._current_opened_at(product_id)
         )
         return realized
 

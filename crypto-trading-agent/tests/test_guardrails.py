@@ -73,3 +73,8 @@ def test_exchange_interface_has_no_fund_movement_methods():
         names = " ".join(dir(cls)).lower()
         for forbidden in ("withdraw", "deposit", "transfer", "send_to", "wallet"):
             assert forbidden not in names, f"{cls.__name__} exposes forbidden capability {forbidden!r}"
+
+
+def test_sell_has_no_dollar_cap():
+    """Sells are exits; capping them would trap large positions."""
+    guardrails.validate_order(**_order(side="SELL", notional_usd=1_000_000.0))

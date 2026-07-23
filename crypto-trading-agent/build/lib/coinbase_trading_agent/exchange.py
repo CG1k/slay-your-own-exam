@@ -104,20 +104,6 @@ def _field(obj, name: str, default=None):
     return getattr(obj, name, default)
 
 
-def _wrap_sdk_errors(fn):
-    """SDK/HTTP failures become ExchangeError so callers have one error type."""
-
-    def wrapper(*args, **kwargs):
-        try:
-            return fn(*args, **kwargs)
-        except ExchangeError:
-            raise
-        except Exception as exc:
-            raise ExchangeError(f"Coinbase API call failed: {exc}") from exc
-
-    return wrapper
-
-
 class CoinbaseExchange:
     """Coinbase Advanced Trade via the official SDK (auth'd with a CDP API key)."""
 
@@ -131,7 +117,6 @@ class CoinbaseExchange:
         # \\n-escaped PEM from .env files needs unescaping before signing works.
         self._client = RESTClient(api_key=api_key_name, api_secret=api_private_key.replace("\\n", "\n"))
 
-    @_wrap_sdk_errors
     def get_key_permissions(self) -> dict:
         perms = self._client.get_api_key_permissions()
         return {
@@ -141,7 +126,6 @@ class CoinbaseExchange:
             "portfolio_type": _field(perms, "portfolio_type"),
         }
 
-    @_wrap_sdk_errors
     def get_balances(self) -> dict[str, float]:
         balances: dict[str, float] = {}
         cursor = None
@@ -158,7 +142,6 @@ class CoinbaseExchange:
             cursor = _field(resp, "cursor")
         return balances
 
-    @_wrap_sdk_errors
     def get_product(self, product_id: str) -> ProductInfo:
         product = self._client.get_product(product_id=product_id)
         price = _field(product, "price")
@@ -175,7 +158,6 @@ class CoinbaseExchange:
             volume_24h=float(volume) if volume not in (None, "") else None,
         )
 
-    @_wrap_sdk_errors
     def get_candles(self, product_id: str, granularity: str, limit: int) -> list[Candle]:
         if granularity not in GRANULARITIES:
             raise ExchangeError(f"granularity must be one of {GRANULARITIES}")
@@ -200,16 +182,14 @@ class CoinbaseExchange:
         candles.sort(key=lambda c: c.start)
         return candles
 
-    @_wrap_sdk_errors
     def market_buy(self, product_id: str, quote_size: float) -> Fill:
         product = self.get_product(product_id)
         size = quantize_down(quote_size, product.quote_increment)
         resp = self._client.market_order_buy(
             client_order_id=uuid.uuid4().hex, product_id=product_id, quote_size=size
         )
-        return self._resolve_fill(resp, product, side="BUY", requested=float(size))
+        return self._resolve_fill(resp, product, side="BUY")
 
-    @_wrap_sdk_errors
     def market_sell(self, product_id: str, base_size: float) -> Fill:
         product = self.get_product(product_id)
         size = quantize_down(base_size, product.base_increment)
@@ -218,9 +198,9 @@ class CoinbaseExchange:
         resp = self._client.market_order_sell(
             client_order_id=uuid.uuid4().hex, product_id=product_id, base_size=size
         )
-        return self._resolve_fill(resp, product, side="SELL", requested=float(size))
+        return self._resolve_fill(resp, product, side="SELL")
 
-    def _resolve_fill(self, resp, product: ProductInfo, side: str, requested: float) -> Fill:
+    def _resolve_fill(self, resp, product: ProductInfo, side: str) -> Fill:
         if not _field(resp, "success", True):
             error = _field(resp, "error_response", {}) or {}
             raise ExchangeError(
@@ -252,39 +232,19 @@ class CoinbaseExchange:
                 break
             time.sleep(0.5)
 
-        if filled_base:
-            return Fill(
-                order_id=order_id,
-                product_id=product.product_id,
-                side=side,
-                base_size=filled_base,
-                # Buys: cost including fee. Sells: net proceeds after fee.
-                quote_size=(filled_quote or 0.0) + fee if side == "BUY" else (filled_quote or 0.0) - fee,
-                price=avg_price or product.price,
-                fee=fee,
+        if filled_base is None or not filled_base:
+            raise ExchangeError(
+                f"Order {order_id} on {product.product_id} did not report a fill; "
+                "check the order on Coinbase before retrying"
             )
-
-        # The order WAS placed but the fill could not be confirmed. Raising here
-        # would lose the accounting entirely (and invite a duplicate retry), so
-        # return a conservative estimate flagged for verification instead.
-        est_fee_rate = 0.006
-        if side == "BUY":
-            est_base = requested * (1 - est_fee_rate) / product.price
-            est_quote, est_fee = requested, requested * est_fee_rate
-        else:
-            est_base = requested
-            gross = requested * product.price
-            est_fee = gross * est_fee_rate
-            est_quote = gross - est_fee
         return Fill(
             order_id=order_id,
             product_id=product.product_id,
             side=side,
-            base_size=est_base,
-            quote_size=est_quote,
-            price=product.price,
-            fee=est_fee,
-            estimated=True,
+            base_size=filled_base,
+            quote_size=(filled_quote or 0.0) + fee if side == "BUY" else (filled_quote or 0.0),
+            price=avg_price or product.price,
+            fee=fee,
         )
 
 

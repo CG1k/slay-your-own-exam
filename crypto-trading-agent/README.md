@@ -46,9 +46,13 @@ Claude analyst (research: news, X/Twitter, Reddit, on-chain, markets)
 ```
 
 Post-trade oversight (no human needed): `run_maintenance` enforces stop-losses
-every time it's called, `challenge_trade` lets the analyst unwind a BUY it
-concludes was wrong, and the daily-loss circuit breaker halts trading on a bad
-day until someone reviews and re-enables.
+and the 28-day maximum hold every time it's called, `challenge_trade` lets the
+analyst unwind a BUY it concludes was wrong, and the daily-loss circuit breaker
+halts trading on a bad day until it is re-enabled with a written review (the
+analyst can do this unless you set `LOCK_RISK_CONTROLS=1`, which reserves mode
+changes and re-enabling for you). Note: the kill switch is absolute — while
+trading is disabled, even protective stop-loss sells are skipped, so flatten
+positions before a long shutdown if you don't want market exposure.
 
 ## Risk modes
 
@@ -57,7 +61,7 @@ day until someone reviews and re-enables.
 | Min confidence to trade | 0.80 | 0.65 | 0.55 |
 | Max single buy (of portfolio) | 5% | 10% | 20% |
 | Max per-asset exposure | 15% | 30% | 50% |
-| Sell fraction on FALL | 33% | 50% | 100% |
+| Sell fraction on FALL (scaled by confidence) | up to 33% | up to 50% | up to 100% |
 | Daily trade cap | 4 | 8 | 16 |
 | Daily realized-loss breaker | 2% | 5% | 10% |
 | Per-coin cooldown | 6 h | 2 h | 30 min |
@@ -102,7 +106,7 @@ Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.mcp.json`):
 {
   "mcpServers": {
     "coinbase-trader": {
-      "command": "coinbase-trading-agent",
+      "command": "/path/to/your/venv/bin/coinbase-trading-agent",
       "env": {
         "TRADING_MODE": "paper",
         "DEFAULT_RISK_MODE": "conservative",
@@ -112,6 +116,9 @@ Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.mcp.json`):
   }
 }
 ```
+
+Use the absolute path to the console script (GUI apps like Claude Desktop
+don't inherit your shell's PATH); `which coinbase-trading-agent` prints it.
 
 For live trading set `TRADING_MODE=live` plus `COINBASE_API_KEY_NAME` and
 `COINBASE_API_PRIVATE_KEY`. All knobs are documented in `.env.example`.
@@ -130,7 +137,7 @@ maintenance cadence.
 | `get_portfolio` | Balances, positions, avg cost, unrealized P&L |
 | `get_market_data` | Price, 24h change, volume |
 | `get_technical_analysis` | The agent's own OHLCV read: score, regime, EMA/RSI/momentum/volume |
-| `submit_prediction` | rise/fall + confidence + horizon + thesis → refusal or sized proposal |
+| `submit_prediction` | rise/fall + confidence + horizon + expected move % + thesis → refusal or sized proposal |
 | `confirm_decision` / `reject_decision` | The analyst's mandatory double-check |
 | `close_position` | Risk-reducing exit (bypasses cap/cooldown, honors kill switch) |
 | `challenge_trade` | Unwind a recent BUY the analyst concludes was wrong |
