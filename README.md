@@ -14,6 +14,8 @@ Everything runs **in your browser**. Your PDFs are never uploaded anywhere. By d
 - **Themes** — Light, Mint, Green, Ocean Blue, Dark.
 - **Durable saves** — every answer, highlight, cross-out and flag is saved continuously. Close the tab mid-test and it's waiting in **History** as an in-progress entry (with your % done) — resume exactly where you left off. Export/Import a whole test as a `.json` file to move it between devices or versions.
 - **Focus Lock** — a web version of the FocusLock Mac app. Arm it for a test and leaving the tab (or clicking off the browser) sounds a looping voice alarm (minimum 5-second blast). The only ways out: say **"I am done with my test"** out loud (speech recognition), or a typed emergency fallback. Limits a web page can't escape: it cannot raise your system volume, and closing the tab kills any alarm a website can make.
+- **Stay Awake monitor** — an opt-in, on-device camera monitor catches prolonged bilateral eye closure, a missing face, or sustained looking away. Record separate wake-up and look-away alerts in your own voice; the clips stay in that browser and camera frames are never recorded or uploaded.
+- **Higher-fidelity PDF extraction** — page-aware text reconstruction preserves paragraphs, answer choices, lab rows, and page boundaries; Claude batches overlap at page boundaries without duplicating questions; repeated page furniture and malformed choices are cleaned before review.
 - **Clean lab panels** — lab values are pulled out of the vignette into their own "Laboratory values" section between the story and the question, instead of being jumbled through the stem.
 - **AI tutoring** — after a block, get targeted, high-yield feedback based on your answers, timing, what you highlighted, and what you crossed out (uses your own Anthropic API key, entered in Settings).
 - **Accounts (optional)** — sign up / log in to sync every saved test, and every in-progress answer, highlight, and cross-out, to your account in real time so you can pick up on another device. One designated admin account can see every account's saved tests. Off by default; see [Set up accounts](#set-up-accounts-optional) below.
@@ -87,6 +89,7 @@ This repo is ready to host as-is. See **DEPLOY** steps in the project chat, or:
 
 No analytics, no tracking. The only outbound network calls are:
 - loading `pdf.js`, the web font, and (if accounts are configured) the Firebase SDK from a CDN,
+- loading MediaPipe's face-landmark runtime and model only when you turn on Stay Awake (camera inference remains on-device),
 - the Anthropic API calls **you** trigger with **your** key, and
 - if accounts are configured and you sign in, your email and saved test results are sent to and stored in the site owner's Firebase project (not this repo, not Anthropic).
 
