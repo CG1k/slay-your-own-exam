@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://cdnjs.cloudflare.com https://api.anthropic.com https://*.googleapis.com https://*.workers.dev wss://*.firebaseio.com; media-src 'self'; worker-src blob: https://cdnjs.cloudflare.com; child-src blob:; frame-src https://slayyourexam.firebaseapp.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdnjs.cloudflare.com https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://storage.googleapis.com https://api.anthropic.com https://*.googleapis.com https://*.workers.dev wss://*.firebaseio.com; media-src 'self' blob:; worker-src 'self' blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; child-src blob:; frame-src https://slayyourexam.firebaseapp.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+
 <meta name="referrer" content="no-referrer">
 <title>Slay Your Own Exam — practice from your own PDFs</title>
 <meta name="description" content="Turn your own question-bank PDF into a realistic, UWorld-style board exam — verbatim questions, a 90-second timer, highlighting, full lab values, and AI tutoring on what you missed.">
@@ -110,10 +111,11 @@ a{color:var(--accent-d)}
 .qrev .top{display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--soft);border-radius:8px 8px 0 0}
 .qrev .top b{font-size:13px}
 .qrev textarea{border:none;border-radius:0;font-size:13.5px}
+.qrev textarea[data-f=stem]{min-height:150px;line-height:1.55;padding:14px}
 .qrev .opts{padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .optrow{display:flex;gap:8px;align-items:flex-start}
 .optrow .lt{font-weight:700;width:20px;text-align:center;padding-top:8px}
-.optrow input[type=text]{font-size:13.5px}
+.optrow textarea{font-size:13.5px;border:1px solid var(--line);border-radius:9px;min-height:44px;resize:vertical}
 .optrow input[type=radio]{margin-top:11px}
 
 /* ---------- exam ---------- */
@@ -195,6 +197,8 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
 .tool svg .fill{fill:currentColor;stroke:none}
 .tool.on{background:var(--wash);color:var(--accent-d);border-color:var(--accent)}
 .tool.flag.on{background:var(--flag-wash);border-color:var(--flag);color:var(--flag)}
+.tool.attention-warn{background:var(--bad-wash);color:var(--bad);border-color:var(--bad);animation:attention-pulse .8s ease-in-out infinite}
+@keyframes attention-pulse{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--bad) 18%,transparent)}}
 /* hover label — what each icon does, without printing it on the bar */
 .tool[data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;
   transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:11.5px;font-weight:600;
@@ -243,7 +247,7 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
 .opt.wrong .lt{background:var(--bad);border-color:var(--bad);color:#fff}
 .opt .lt{flex:none;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--optline);background:var(--panel);
   display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer;transition:background .12s}
-.opt .otext{flex:1;font-size:15.5px;line-height:1.5;font-weight:500;letter-spacing:-.002em}
+.opt .otext{flex:1;font-size:15.5px;line-height:1.5;font-weight:500;letter-spacing:-.002em;white-space:pre-line}
 .opt .elimbtn{flex:none;align-self:center;border:1px solid var(--optline);background:transparent;color:var(--muted);
   border-radius:8px;width:26px;height:26px;line-height:1;font-size:12px;transition:color .12s,border-color .12s,background .12s}
 .opt .elimbtn:hover{color:var(--bad);border-color:var(--bad);background:var(--bad-wash)}
@@ -342,6 +346,13 @@ table.rev th{color:var(--muted);font-weight:600;position:sticky;top:0;background
 .revimg{position:relative}
 .revimg img{max-height:170px;max-width:min(320px,100%);width:auto;height:auto;object-fit:contain;border:1px solid var(--line);border-radius:8px;display:block;cursor:zoom-in;background:#fff}
 .revimg .x{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:none;background:var(--bad);color:#fff;font-size:12px;line-height:1}
+.attention-video{position:fixed;left:-4px;bottom:-4px;width:2px;height:2px;opacity:.01;pointer-events:none}
+.voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.voice-card{border:1px solid var(--line);background:var(--soft);border-radius:12px;padding:13px}
+.voice-card .prompt{font-size:13px;font-weight:700;margin-bottom:7px}
+.voice-card .record-status{min-height:19px;margin-top:7px}
+.recording{color:var(--bad)!important;font-weight:700}
+@media(max-width:640px){.voice-grid{grid-template-columns:1fr}}
 .rangebox{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
 .rangebox .f{max-width:150px}
 @media (max-width:640px){.grid2{grid-template-columns:1fr}}
@@ -478,6 +489,9 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
     <div style="margin-top:8px" class="row">
       <label style="display:flex;gap:7px;align-items:center;font-size:13.5px"><input type="checkbox" id="focusLockOpt"> 🔒 <b>Focus Lock</b> — sound a voice alarm if I leave this tab or click away from the browser; unlock only by saying <i>“I am done with my test”</i></label>
     </div>
+    <div style="margin-top:8px" class="row">
+      <label style="display:flex;gap:7px;align-items:flex-start;font-size:13.5px"><input type="checkbox" id="attentionOpt" style="margin-top:4px"> 👁 <span><b>Stay Awake monitor</b> — use the camera to catch prolonged eye closure, a missing face, or looking away and play your recorded voice alert. Video is processed on this device and is never recorded or uploaded.</span></label>
+    </div>
     <p class="note" style="margin-top:10px">Per-question timer is fixed at <b>1:30 (90s)</b> with a pause button on every question, as you asked. Your extracted questions and test progress are saved in this browser automatically — refreshing or hitting Back won't lose them. Scanned or image-only PDFs work too: <b>Claude Vision</b> reads the pages directly and pulls each figure into its question — no OCR needed.</p>
   </div>
 
@@ -496,7 +510,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
 
   <div class="foot">
     <span>Slay Your Own Exam — runs entirely in your browser. Your PDFs and answers never leave your device.</span>
-    <span><span class="dot">●</span> Built for focused board prep · v2026-07-08</span>
+    <span><span class="dot">●</span> Built for focused board prep · v2026-07-24</span>
   </div>
 </section>
 
@@ -547,6 +561,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       <span class="toolsep"></span>
       <button class="tool" id="fsBtn" data-tip="Full screen">⛶</button>
       <button class="tool" id="focusBtn" data-tip="Focus Lock">🔓</button>
+      <button class="tool" id="attentionBtn" data-tip="Stay Awake monitor">👁</button>
       <button class="tool tipleft" id="pauseBtn" data-tip="Pause">⏸</button>
       <span class="timer total" id="timerTotal" title="Time left for the whole block — 1:30 × number of questions">Block --:--</span>
       <span class="timer" id="timer" title="Time left on this question">1:30</span>
@@ -663,6 +678,29 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       </div>
     </div>
     <p class="note" style="margin-top:8px">If a model name is rejected by your account, change it here (e.g. <code>claude-sonnet-4-6</code>, <code>claude-haiku-4-5-20251001</code>).</p>
+    <div class="divider"></div>
+    <label class="fld">Stay Awake alerts — record them in your voice</label>
+    <p class="note" style="margin:0 0 10px">Record short, loud clips. They stay in this browser. If no custom clip exists, the app uses the existing Chase voice alarm.</p>
+    <div class="voice-grid">
+      <div class="voice-card">
+        <div class="prompt">Eyes closed: “Wake up.”</div>
+        <div class="row">
+          <button class="btn sm" id="recordWake">● Record</button>
+          <button class="btn ghost sm" id="playWake" disabled>▶ Play</button>
+          <button class="btn ghost sm" id="deleteWake" disabled>Delete</button>
+        </div>
+        <div class="note record-status" id="wakeRecordStatus">No custom clip — using the Chase alarm.</div>
+      </div>
+      <div class="voice-card">
+        <div class="prompt">Looking away: “Get back to the test, bitch.”</div>
+        <div class="row">
+          <button class="btn sm" id="recordAway">● Record</button>
+          <button class="btn ghost sm" id="playAway" disabled>▶ Play</button>
+          <button class="btn ghost sm" id="deleteAway" disabled>Delete</button>
+        </div>
+        <div class="note record-status" id="awayRecordStatus">No custom clip — using the Chase alarm.</div>
+      </div>
+    </div>
     <div class="row" style="margin-top:14px">
       <button class="btn" id="saveSettings">Save</button>
       <button class="btn ghost sm" id="backHome3">Back</button>
@@ -673,6 +711,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
 <!-- modals -->
 <div id="modalRoot"></div>
 <div class="toast" id="toast"></div>
+<video id="attentionVideo" class="attention-video" playsinline muted aria-hidden="true"></video>
 
 <script>
 /* =========================================================================
@@ -689,7 +728,7 @@ const TIMER_SECONDS = 90;
 const PAGE_TITLE = document.title;
 
 const state = {
-  pdfText:'', pdfName:'', pdfDoc:null,
+  pdfText:'', pdfPages:[], pdfName:'', pdfDoc:null,
   questions:[],        // extracted/reviewed question set
   order:[],            // index order for the test
   cur:0,
@@ -739,10 +778,13 @@ function sanitizeStemHTML(html){
    silently dropping them — which is why figures showed in review but vanished from
    the test after a refresh or resume. IndexedDB holds hundreds of MB, so every
    figure is parked there under its question's id and re-attached on every resume. */
-const IDB_NAME='qbank-images',IDB_STORE='img';
+const IDB_NAME='qbank-images',IDB_STORE='img',IDB_AUDIO_STORE='audio';
 function idbOpen(){return new Promise((res,rej)=>{
-  const r=indexedDB.open(IDB_NAME,1);
-  r.onupgradeneeded=()=>{r.result.createObjectStore(IDB_STORE);};
+  const r=indexedDB.open(IDB_NAME,2);
+  r.onupgradeneeded=()=>{
+    if(!r.result.objectStoreNames.contains(IDB_STORE))r.result.createObjectStore(IDB_STORE);
+    if(!r.result.objectStoreNames.contains(IDB_AUDIO_STORE))r.result.createObjectStore(IDB_AUDIO_STORE);
+  };
   r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
 });}
 async function idbImagesSave(questions){ // store each question's figures under its id
@@ -789,6 +831,32 @@ async function idbImagesDelete(questions){
     db.close();
   }catch(e){}
 }
+async function idbAudioPut(key,blob){
+  const db=await idbOpen();
+  await new Promise((res,rej)=>{
+    const tx=db.transaction(IDB_AUDIO_STORE,'readwrite');
+    tx.objectStore(IDB_AUDIO_STORE).put(blob,key);
+    tx.oncomplete=res;tx.onerror=()=>rej(tx.error);
+  });
+  db.close();
+}
+async function idbAudioGet(key){
+  const db=await idbOpen();
+  const blob=await new Promise((res,rej)=>{
+    const tx=db.transaction(IDB_AUDIO_STORE,'readonly'),rq=tx.objectStore(IDB_AUDIO_STORE).get(key);
+    rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>rej(rq.error);
+  });
+  db.close();return blob;
+}
+async function idbAudioDelete(key){
+  const db=await idbOpen();
+  await new Promise((res,rej)=>{
+    const tx=db.transaction(IDB_AUDIO_STORE,'readwrite');
+    tx.objectStore(IDB_AUDIO_STORE).delete(key);
+    tx.oncomplete=res;tx.onerror=()=>rej(tx.error);
+  });
+  db.close();
+}
 /* figures re-attached after an async vault read → refresh whatever screen shows them */
 function refreshImagesOnScreen(){
   if(state.screen==='exam')renderStemImages();
@@ -820,6 +888,89 @@ $('#saveSettings').onclick=()=>{
   saveJSON(LS.settings,settings); toast('Settings saved'); backFromOverlay();
 };
 $('#themeBtn').onclick=()=>{const i=THEMES.indexOf(settings.theme||'light');setTheme(THEMES[(i+1)%THEMES.length]);toast('Theme: '+(settings.theme.charAt(0).toUpperCase()+settings.theme.slice(1)));};
+
+/* ---------- local voice clips for Stay Awake ---------- */
+const VOICE_KEYS={wake:'attention-wake',away:'attention-away'};
+const voiceClipBlobs={wake:null,away:null},voiceClipURLs={wake:null,away:null};
+let voiceRecorder=null,voiceRecordKind=null,voiceRecordStream=null,voiceRecordStopTimer=null;
+function voiceEls(kind){
+  const cap=kind==='wake'?'Wake':'Away';
+  return {record:$('#record'+cap),play:$('#play'+cap),del:$('#delete'+cap),status:$('#'+kind+'RecordStatus')};
+}
+function renderVoiceClipUI(kind){
+  const el=voiceEls(kind),has=!!voiceClipBlobs[kind],active=voiceRecordKind===kind;
+  el.record.textContent=active?'■ Stop':'● Record';
+  el.record.classList.toggle('recording',active);
+  el.play.disabled=!has||!!voiceRecordKind;el.del.disabled=!has||!!voiceRecordKind;
+  if(active)el.status.textContent='Recording… say it loudly, then press Stop.';
+  else el.status.textContent=has?'Custom voice clip saved in this browser.':'No custom clip — using the Chase alarm.';
+}
+async function loadVoiceClips(){
+  for(const kind of ['wake','away']){
+    try{
+      const blob=await idbAudioGet(VOICE_KEYS[kind]);
+      voiceClipBlobs[kind]=blob instanceof Blob?blob:null;
+      if(voiceClipURLs[kind])URL.revokeObjectURL(voiceClipURLs[kind]);
+      voiceClipURLs[kind]=voiceClipBlobs[kind]?URL.createObjectURL(voiceClipBlobs[kind]):null;
+      if(voiceClipBlobs[kind])decodeVoiceClip(kind,voiceClipBlobs[kind]);
+    }catch(e){console.warn('Voice clip load failed:',e);}
+    renderVoiceClipUI(kind);
+  }
+}
+async function toggleVoiceRecording(kind){
+  if(voiceRecorder){
+    if(voiceRecordKind===kind)voiceRecorder.stop();
+    else toast('Stop the other recording first');
+    return;
+  }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){toast('Microphone recording is not supported in this browser');return;}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const chunks=[];
+    const rec=new MediaRecorder(stream);
+    voiceRecorder=rec;voiceRecordKind=kind;voiceRecordStream=stream;
+    ['wake','away'].forEach(renderVoiceClipUI);
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+    rec.onstop=async()=>{
+      clearTimeout(voiceRecordStopTimer);voiceRecordStopTimer=null;
+      stream.getTracks().forEach(t=>t.stop());
+      const finishedKind=voiceRecordKind;
+      voiceRecorder=null;voiceRecordKind=null;voiceRecordStream=null;
+      if(chunks.length){
+        const blob=new Blob(chunks,{type:rec.mimeType||'audio/webm'});
+        try{
+          await idbAudioPut(VOICE_KEYS[finishedKind],blob);
+          voiceClipBlobs[finishedKind]=blob;
+          if(voiceClipURLs[finishedKind])URL.revokeObjectURL(voiceClipURLs[finishedKind]);
+          voiceClipURLs[finishedKind]=URL.createObjectURL(blob);
+          await decodeVoiceClip(finishedKind,blob);
+          toast('Voice alert saved');
+        }catch(e){console.error(e);toast('Could not save that recording');}
+      }
+      ['wake','away'].forEach(renderVoiceClipUI);
+    };
+    rec.start();
+    voiceRecordStopTimer=setTimeout(()=>{if(voiceRecorder===rec&&rec.state==='recording')rec.stop();},8000);
+  }catch(e){
+    console.error(e);toast(e&&e.name==='NotAllowedError'?'Microphone permission was blocked':'Could not start microphone recording');
+  }
+}
+async function deleteVoiceClip(kind){
+  try{await idbAudioDelete(VOICE_KEYS[kind]);}catch(e){}
+  voiceClipBlobs[kind]=null;
+  if(voiceClipURLs[kind])URL.revokeObjectURL(voiceClipURLs[kind]);
+  voiceClipURLs[kind]=null;voiceBuffers[kind]=null;
+  renderVoiceClipUI(kind);toast('Custom clip deleted — using the Chase alarm');
+}
+['wake','away'].forEach(kind=>{
+  const el=voiceEls(kind);
+  el.record.onclick=()=>toggleVoiceRecording(kind);
+  el.play.onclick=()=>{
+    if(!voiceClipURLs[kind])return;
+    const a=new Audio(voiceClipURLs[kind]);a.volume=1;a.play().catch(()=>toast('Press Play again to allow audio'));
+  };
+  el.del.onclick=()=>deleteVoiceClip(kind);
+});
 
 /* ---------- accounts (Firebase) ----------
    To turn accounts on: create a free project at https://console.firebase.google.com,
@@ -896,7 +1047,8 @@ function cloudSaveLiveNow(){ // immediate — used right before the tab goes awa
   const qNoImg=state.questions.map(q=>{const c=Object.assign({},q);delete c.images;return c;});
   const payload={liveId:state.liveId,pdfName:state.pdfName,questions:qNoImg,options:collectOptions(),
     screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,attempts:state.attempts,
-    startedAt:state.startedAt,reviewMode:state.reviewMode,focusLock:focusArmed,savedAt:Date.now()};
+    startedAt:state.startedAt,reviewMode:state.reviewMode,focusLock:focusArmed,
+    attentionMonitor:attentionEnabled,savedAt:Date.now()};
   liveDocRef().set(payload).catch(e=>console.warn('Cloud live-save failed:',e));
 }
 function resumeFromCloudIfAny(){ // offers to pick up an in-progress test left on another device
@@ -910,6 +1062,7 @@ function resumeFromCloudIfAny(){ // offers to pick up an in-progress test left o
     state.pdfName=d.pdfName||'';applyOptions(d.options);
     state.order=d.order||[];state.attempts=d.attempts||[];state.cur=Math.min(d.cur||0,(d.order||[]).length-1);
     state.liveId=d.liveId||uid();state.liveName=d.pdfName||'Untitled';if(d.focusLock)state._rearmFocus=true;
+    if(d.attentionMonitor)state._rearmAttention=true;
     state.mode=d.mode||'test';state.startedAt=d.startedAt||Date.now();state.reviewMode=!!d.reviewMode;
     saveLiveQ();saveLiveState();
     if(d.screen==='exam'&&d.order&&d.order.length){showScreen('exam');loadQuestion(state.cur);toast('Resumed your test from another device');}
@@ -1063,6 +1216,7 @@ function suspendLiveTest(){
   }
   closeNavPanel();
   saveLiveState();cloudSaveLiveNow();
+  if(attentionEnabled){state._rearmAttention=true;stopAttentionMonitor(true);}
   return true;
 }
 function goHome(){
@@ -1109,7 +1263,8 @@ function collectOptions(){return {
   extractMethod:$('#extractMethod').value, testMode:$('#testMode').value,
   shuffle:$('#shuffle').checked, autoAdvance:$('#autoAdvance').checked,
   grabImages:$('#grabImages').checked, verifyImages:$('#verifyImages').checked,
-  focusLock:$('#focusLockOpt')?$('#focusLockOpt').checked:false
+  focusLock:$('#focusLockOpt')?$('#focusLockOpt').checked:false,
+  attentionMonitor:$('#attentionOpt')?$('#attentionOpt').checked:false
 };}
 function applyOptions(o){ if(!o)return;
   if(o.extractMethod)$('#extractMethod').value=o.extractMethod;
@@ -1117,6 +1272,7 @@ function applyOptions(o){ if(!o)return;
   $('#shuffle').checked=!!o.shuffle; $('#autoAdvance').checked=!!o.autoAdvance;
   $('#grabImages').checked=o.grabImages!==false; $('#verifyImages').checked=o.verifyImages!==false;
   if($('#focusLockOpt'))$('#focusLockOpt').checked=!!o.focusLock;
+  if($('#attentionOpt'))$('#attentionOpt').checked=!!o.attentionMonitor;
 }
 function bankTimer(){ // write current question's active time into its attempt (no UI change)
   if(state.reviewMode||!state.order||!state.order.length)return;
@@ -1144,7 +1300,7 @@ function saveLiveState(){ // the small, fast-changing exam/progress state — wr
   bankTimer();
   const snap={liveId:state.liveId,screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,
     attempts:state.attempts,startedAt:state.startedAt,reviewMode:state.reviewMode,
-    focusLock:focusArmed,savedAt:Date.now()};
+    focusLock:focusArmed,attentionMonitor:attentionEnabled,savedAt:Date.now()};
   try{localStorage.setItem(LS.live,JSON.stringify(snap));}catch(e){}
   cloudSaveLiveSoon();
 }
@@ -1177,6 +1333,7 @@ function tryResume(){
   if(s&&s.screen==='exam'&&Array.isArray(s.order)&&Array.isArray(s.attempts)){
     state.order=s.order;state.attempts=s.attempts;state.cur=Math.min(s.cur||0,s.order.length-1);
     state.liveId=s.liveId||uid();state.liveName=q.pdfName||'Untitled';if(s.focusLock)state._rearmFocus=true;
+    if(s.attentionMonitor)state._rearmAttention=true;
     state.mode=s.mode||'test';state.startedAt=s.startedAt||Date.now();state.reviewMode=false;
     showScreen('setup'); // land on the menu, UWorld-style — the resume card takes it from here
     toast('You have a test in progress — resume when ready');return true;
@@ -1199,6 +1356,72 @@ $('#file').onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
 drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
 
+function pageTextLines(content,pageWidth){
+  const items=(content.items||[]).filter(it=>it&&typeof it.str==='string'&&it.str.length).map(it=>({
+    text:it.str,x:Number(it.transform&&it.transform[4])||0,y:Number(it.transform&&it.transform[5])||0,
+    width:Math.abs(Number(it.width)||0),height:Math.max(6,Math.abs(Number(it.transform&&it.transform[3])||Number(it.height)||10))
+  })).sort((a,b)=>b.y-a.y||a.x-b.x);
+  const rows=[];
+  for(const it of items){
+    let row=null;
+    for(let i=rows.length-1;i>=Math.max(0,rows.length-4);i--){
+      const r=rows[i],tol=Math.max(2.2,Math.min(r.height,it.height)*.38);
+      if(Math.abs(r.y-it.y)<=tol){row=r;break;}
+      if(r.y-it.y>tol*2)break;
+    }
+    if(!row){row={y:it.y,height:it.height,items:[]};rows.push(row);}
+    row.items.push(it);row.height=Math.max(row.height,it.height);
+  }
+  rows.sort((a,b)=>b.y-a.y);
+  const heights=rows.map(r=>r.height).sort((a,b)=>a-b);
+  const medianH=heights.length?heights[Math.floor(heights.length/2)]:10;
+  const out=[];let prev=null;
+  for(const row of rows){
+    if(prev&&prev.y-row.y>Math.max(prev.height,row.height,medianH)*1.65)out.push('');
+    const its=row.items.sort((a,b)=>a.x-b.x);
+    let line='',endX=null,last=null;
+    for(const it of its){
+      if(endX!==null){
+        const gap=it.x-endX;
+        const charW=Math.max(2.5,Math.min(12,((last.width/(last.text.length||1))+(it.width/(it.text.length||1)))/2));
+        if(gap>Math.max(row.height*1.05,charW*3.2)){
+          const spaces=Math.max(3,Math.min(12,Math.round(gap/charW)));
+          line+=' '.repeat(spaces);
+        }else if(gap>charW*.18&&!/\s$/.test(line)&&!/^\s/.test(it.text))line+=' ';
+      }
+      line+=it.text;endX=Math.max(it.x+it.width,endX==null?-Infinity:endX);last=it;
+    }
+    const clean=line.replace(/[ \t]+$/,'');
+    if(clean)out.push(clean);
+    prev=row;
+  }
+  return out;
+}
+function stripRepeatedPageFurniture(pages){
+  if(pages.length<2)return pages;
+  const counts=new Map();
+  const norm=s=>String(s||'').toLowerCase().replace(/\d+/g,'#').replace(/\s+/g,' ').trim();
+  pages.forEach(p=>{
+    const nonblank=p.lines.map((text,i)=>({text,i})).filter(x=>x.text.trim());
+    const edge=nonblank.slice(0,2).concat(nonblank.slice(-2));
+    new Set(edge.map(x=>norm(x.text)).filter(x=>x.length>=3)).forEach(k=>counts.set(k,(counts.get(k)||0)+1));
+  });
+  const repeated=new Set(Array.from(counts).filter(([,n])=>n>=Math.max(2,Math.ceil(pages.length*.5))).map(([k])=>k));
+  return pages.map(p=>{
+    const nonblank=p.lines.map((text,i)=>({text,i})).filter(x=>x.text.trim());
+    const edgeIndexes=new Set(nonblank.slice(0,2).concat(nonblank.slice(-2)).map(x=>x.i));
+    const lines=p.lines.filter((line,i)=>{
+      const t=line.trim();
+      if(edgeIndexes.has(i)&&repeated.has(norm(t)))return false;
+      if(edgeIndexes.has(i)&&/^(?:page\s*)?\d+\s*(?:of|\/)\s*\d+$/i.test(t))return false;
+      return true;
+    });
+    while(lines.length&&!lines[0].trim())lines.shift();
+    while(lines.length&&!lines[lines.length-1].trim())lines.pop();
+    return {number:p.number,lines,text:lines.join('\n')};
+  });
+}
+
 async function handleFile(file){
   if(!window.pdfjsLib){toast('PDF engine did not load — check your internet connection and refresh.');return;}
   if(file.type!=='application/pdf'){toast('Please choose a PDF');return;}
@@ -1208,29 +1431,17 @@ async function handleFile(file){
     const buf=await file.arrayBuffer();
     const pdf=await pdfjsLib.getDocument({data:buf}).promise;
     state.pdfDoc=pdf;
-    let txt='';
+    let rawPages=[];
     for(let p=1;p<=pdf.numPages;p++){
       const page=await pdf.getPage(p);
       const c=await page.getTextContent();
-      // reconstruct lines from y-positions; insert spacing from x-gaps so
-      // two-column lab data keeps its label/value separation
-      let lastY=null,lastXEnd=null,line='';const lines=[];
-      for(const it of c.items){
-        const x=it.transform[4], y=it.transform[5], w=it.width||0;
-        const h=Math.abs(it.transform[3])||it.height||10;
-        if(lastY!==null&&Math.abs(y-lastY)>Math.max(3,h*0.5)){lines.push(line);line='';lastXEnd=null;}
-        if(lastXEnd!==null){
-          const gap=x-lastXEnd;
-          if(gap>h*1.0) line+='   ';                                            // column gap → separator
-          else if(gap>h*0.16 && !/\s$/.test(line) && !/^\s/.test(it.str)) line+=' '; // ordinary word space
-        }
-        line+=it.str; lastXEnd=x+w; lastY=y;
-      }
-      if(line)lines.push(line);
-      txt+=lines.join('\n')+'\n\n';
+      const viewport=page.getViewport({scale:1});
+      const lines=pageTextLines(c,viewport.width);
+      rawPages.push({number:p,lines,text:lines.join('\n')});
       $('#setupStatus').textContent='Reading page '+p+' / '+pdf.numPages+' …';
     }
-    state.pdfText=txt.trim();
+    state.pdfPages=stripRepeatedPageFurniture(rawPages);
+    state.pdfText=state.pdfPages.map(p=>'=== PAGE '+p.number+' ===\n'+p.text).join('\n\n').trim();
     const chars=state.pdfText.length;
     const sparse=chars<40*pdf.numPages; // little/no selectable text ⇒ scanned or image-only
     if(chars<40){
@@ -1273,8 +1484,9 @@ $('#extractBtn').onclick=async()=>{
     }else{
       if(!settings.apiKey){st.innerHTML='Add your API key in Settings first (or switch to the built-in parser).';$('#extractBtn').disabled=false;return;}
       st.innerHTML='<span class="spin"></span> Extracting verbatim with Claude …';
-      qs=await claudeExtract(state.pdfText,m=>st.innerHTML='<span class="spin"></span> '+m);
+      qs=await claudeExtract(state.pdfPages.length?state.pdfPages:state.pdfText,m=>st.innerHTML='<span class="spin"></span> '+m);
     }
+    qs=normalizeQuestions(qs||[]);
     if(!qs.length){st.innerHTML='No questions detected. Try the other extraction method, or check the PDF.';$('#extractBtn').disabled=false;return;}
     qs.forEach((q,i)=>{q.id=q.id||uid();q.idx=i;q.images=q.images||[];});
     stashLiveToHistory(); // an in-progress test is archived to History before this new set replaces it
@@ -1296,29 +1508,111 @@ $('#extractBtn').onclick=async()=>{
 };
 
 /* ---- local heuristic parser (fallback, no API) ---- */
+function cleanExtractedText(value){
+  return String(value==null?'':value).normalize('NFC')
+    .replace(/\u00ad/g,'').replace(/[\u200b-\u200d\ufeff]/g,'').replace(/\u00a0/g,' ')
+    .replace(/\r/g,'').split('\n').map(line=>line.replace(/[ \t]+$/,'')).join('\n')
+    .replace(/\n{3,}/g,'\n\n').trim();
+}
+function normalizeQuestions(input){
+  const normalized=[];
+  for(const raw of Array.isArray(input)?input:[]){
+    if(!raw)continue;
+    const stem=cleanExtractedText(raw.stem);
+    const rawOpts=Array.isArray(raw.options)?raw.options:[];
+    const options=[];const used=new Set();
+    rawOpts.forEach((o,j)=>{
+      const obj=typeof o==='string'?{text:o}:o||{};
+      let letter=String(obj.letter||'').trim().toUpperCase().replace(/[^A-H]/g,'');
+      if(letter.length!==1||used.has(letter))letter=String.fromCharCode(65+j);
+      let text=cleanExtractedText(obj.text);
+      text=text.replace(new RegExp('^\\(?'+letter+'\\)?[.):\\-]\\s*','i'),'').trim();
+      if(!text)return;
+      used.add(letter);options.push({letter,text});
+    });
+    if(!stem||options.length<2)continue;
+    let correct=String(raw.correct||'').trim().toUpperCase();
+    const cm=/\b([A-H])\b/.exec(correct);correct=cm?cm[1]:null;
+    if(correct&&!options.some(o=>o.letter===correct))correct=null;
+    const q={
+      number:String(raw.number||'').trim(),stem,options,correct,
+      explanation:cleanExtractedText(raw.explanation||''),
+      images:Array.isArray(raw.images)?raw.images.filter(okImg):[]
+    };
+    const signature=stem.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0,150);
+    const key=(q.number?'n:'+q.number+'|':'s:')+signature;
+    const prior=normalized.find(x=>x._dedupeKey===key);
+    if(prior){
+      const score=x=>x.stem.length+x.options.reduce((n,o)=>n+o.text.length,0)+(x.images.length?500:0)+(x.explanation?100:0);
+      if(score(q)>score(prior)){
+        if(!q.images.length&&prior.images.length)q.images=prior.images;
+        normalized[normalized.indexOf(prior)]=q;q._dedupeKey=key;
+      }else if(!prior.images.length&&q.images.length)prior.images=q.images;
+      continue;
+    }
+    q._dedupeKey=key;normalized.push(q);
+  }
+  normalized.forEach(q=>delete q._dedupeKey);
+  return normalized;
+}
+function questionIssues(q){
+  const issues=[];
+  if(q.stem.length<35)issues.push('very short stem');
+  if(q.options.length<4)issues.push('only '+q.options.length+' choices');
+  if(q.options.some(o=>!o.text.trim()))issues.push('blank choice');
+  if(new Set(q.options.map(o=>o.letter)).size!==q.options.length)issues.push('duplicate choice letters');
+  return issues;
+}
 function localParse(text){
-  const lines=text.split('\n');
-  const qStart=/^\s*(?:Q(?:uestion)?\s*)?(\d{1,3})[\.\)\:]\s+(.*)/i;
-  const optStart=/^\s*\(?([A-Ea-e])[\.\)]\s+(.*)/;
-  const ansKey=/^\s*(?:answer|correct(?:\s*answer)?|ans)\s*[:\-]?\s*\(?([A-Ea-e])\)?/i;
+  const lines=String(text||'').replace(/\r/g,'').split('\n');
+  const qStart=/^\s*(?:(?:Q(?:uestion)?|Item)\s*)?(\d{1,4})(?:\s*[\.\)\:\-]\s*|\s*$)(.*)$/i;
+  const optStart=/^\s*(?:\(([A-Ha-h])\)|([A-Ha-h])[\.\)\:\-])\s*(.*)$/;
+  const ansLine=/^\s*(?:answer|correct(?:\s*answer)?|ans)\s*(?:is\s*)?[:\-]?\s*\(?([A-Ha-h])\)?\b/i;
+  const explanationStart=/^\s*(?:explanation|rationale|discussion)\s*[:\-]?\s*(.*)$/i;
+  const answerMap={};let inAnswerKey=false;
+  for(const raw of lines){
+    if(/\banswer\s+key\b/i.test(raw)){inAnswerKey=true;continue;}
+    if(!inAnswerKey)continue;
+    const pairRe=/(\d{1,4})\s*[\.\)\:\-]?\s*([A-H])\b/gi;
+    const residue=raw.replace(pairRe,'').replace(/[\s,;|/]+/g,'');
+    if(residue)continue;
+    pairRe.lastIndex=0;let m;
+    while((m=pairRe.exec(raw)))answerMap[m[1]]=m[2].toUpperCase();
+  }
   const out=[];let cur=null,bucket='stem';
-  const push=()=>{if(cur&&cur.options.length>=2){cur.stem=cur.stem.trim();out.push(cur);}};
-  for(let raw of lines){
-    const line=raw.replace(/\s+$/,'');
+  const push=()=>{
+    if(!cur||cur.options.length<2)return;
+    cur.stem=cleanExtractedText(cur.stem);
+    cur.explanation=cleanExtractedText(cur.explanation);
+    if(!cur.correct&&answerMap[cur.number])cur.correct=answerMap[cur.number];
+    out.push(cur);
+  };
+  for(const raw of lines){
+    const line=raw.replace(/[ \t]+$/,'');
+    if(/^=== PAGE \d+ ===$/.test(line)){if(cur&&bucket==='stem'&&!/\n$/.test(cur.stem))cur.stem+='\n';bucket=cur&&cur.options.length?'between':bucket;continue;}
+    if(/^\s*(?:answer|correct answers?)\s+key\s*:?\s*$/i.test(line)){bucket='between';continue;}
+    const furniture=line.trim();
+    if(furniture.length<100&&/^[^a-z]*[A-Z][A-Z0-9 \u2013\u2014|:/.-]*$/.test(furniture)&&
+       /\b(?:confidential|copyright|all rights reserved|test bank|question bank|review copy|page)\b/i.test(furniture))continue;
     let m;
     if((m=qStart.exec(line))&&(!cur||cur.options.length>=2)){
       push();cur={number:m[1],stem:m[2]||'',options:[],correct:null,explanation:''};bucket='stem';continue;
     }
     if(!cur)continue;
-    if((m=optStart.exec(line))){cur.options.push({letter:m[1].toUpperCase(),text:m[2]||''});bucket='opt';continue;}
-    if((m=ansKey.exec(line))){cur.correct=m[1].toUpperCase();bucket='expl';continue;}
+    if((m=optStart.exec(line))){
+      cur.options.push({letter:(m[1]||m[2]).toUpperCase(),text:m[3]||''});bucket='opt';continue;
+    }
+    if((m=ansLine.exec(line))){cur.correct=m[1].toUpperCase();bucket='expl';continue;}
+    if((m=explanationStart.exec(line))){bucket='expl';cur.explanation+=(cur.explanation?'\n':'')+(m[1]||'');continue;}
+    if(bucket==='between')continue;
     // continuation — stems keep their line breaks so lab rows stay detectable rows
     if(bucket==='stem')cur.stem+='\n'+line;
-    else if(bucket==='opt'&&cur.options.length)cur.options[cur.options.length-1].text+=' '+line.trim();
-    else if(bucket==='expl')cur.explanation+=(cur.explanation?' ':'')+line.trim();
+    else if(bucket==='opt'&&cur.options.length){
+      if(line.trim())cur.options[cur.options.length-1].text+=(cur.options[cur.options.length-1].text?' ':'')+line.trim();
+    }else if(bucket==='expl')cur.explanation+=(cur.explanation?'\n':'')+line;
   }
   push();
-  return out;
+  return normalizeQuestions(out);
 }
 
 /* ---- run async work with a concurrency cap (keeps order, avoids rate limits) ---- */
@@ -1331,7 +1625,7 @@ async function pMapLimit(items,limit,fn){
   return results;
 }
 
-/* ---- Claude verbatim extraction (chunks run in parallel) ---- */
+/* ---- Claude verbatim extraction (page-owned batches prevent split/duplicate questions) ---- */
 function chunkText(text,size=12000){
   const paras=text.split(/\n\s*\n/);const chunks=[];let buf='';
   for(const p of paras){
@@ -1342,26 +1636,31 @@ function chunkText(text,size=12000){
   return chunks;
 }
 async function claudeExtract(text,onProg){
-  const chunks=chunkText(text);
+  let pages;
+  if(Array.isArray(text))pages=text.map((p,i)=>({number:p.number||i+1,text:String(p.text||'')}));
+  else pages=chunkText(String(text||'')).map((t,i)=>({number:i+1,text:t}));
+  const OWN=3,batches=[];
+  for(let i=0;i<pages.length;i+=OWN)batches.push({
+    owned:pages.slice(i,i+OWN),context:pages[i+OWN]||null
+  });
   let done=0;
-  const sys="You extract EXISTING exam questions from a document. Copy text EXACTLY, verbatim, character for character — including every answer choice. Do NOT paraphrase, summarize, fix typos, translate, or invent anything. Preserve the original line breaks. For laboratory or other tabular data, keep each row on its own line and KEEP the run of spaces that separates a label from its value (e.g. 'Sodium    140 mEq/L') — never collapse a table into a paragraph. Only include items that are clearly multiple-choice questions present in the text. Identify the correct answer ONLY if the text explicitly indicates it (answer key, 'Answer: X', bolded/marked choice, or an explanation that states it); otherwise use null. Capture an explanation only if one is literally present in the text. Output ONLY JSON.";
-  const schema='Return JSON exactly like: {"questions":[{"number":"<original number or empty>","stem":"<verbatim question vignette + lead-in>","options":[{"letter":"A","text":"<verbatim>"}],"correct":"A or null","explanation":"<verbatim or empty>"}]}';
-  // 5 chunks at a time — big speed-up vs one-at-a-time, order preserved
-  const arrays=await pMapLimit(chunks,5,async(chunk)=>{
-    const msg='DOCUMENT CHUNK:\n"""\n'+chunk+'\n"""\n\n'+schema+'\nReturn only the JSON object, no prose, no code fences.';
+  const sys="You extract EXISTING multiple-choice exam questions from PDF text. Copy every word exactly; never paraphrase, summarize, correct, translate, or invent. Preserve paragraph breaks and keep each laboratory/table row on its own line. Reconstruct words only when the PDF text layer split their characters; do not change the wording. Ignore page headers, footers, watermarks, page numbers, navigation text, and unrelated prose. Include a correct answer or explanation only when the supplied pages explicitly contain it. Output JSON only.";
+  const arrays=await pMapLimit(batches,3,async(batch)=>{
+    const first=batch.owned[0].number,last=batch.owned[batch.owned.length-1].number;
+    let doc=batch.owned.map(p=>'=== PAGE '+p.number+' (OWNED) ===\n'+p.text).join('\n\n');
+    if(batch.context)doc+='\n\n=== PAGE '+batch.context.number+' (CONTEXT ONLY) ===\n'+batch.context.text;
+    const msg='Transcribe every multiple-choice question that BEGINS on owned pages '+first+' through '+last+'. '+
+      (batch.context?'The context-only page may finish a question from an owned page, but do not output a question that begins on the context-only page. ':'')+
+      'Keep the full vignette and lead-in together in "stem". Put every answer choice in its own option object, without its leading letter. Preserve blank lines between true paragraphs and newlines between lab/table rows. '+
+      'Return exactly: {"questions":[{"sourcePage":1,"number":"<printed number or empty>","stem":"<verbatim vignette and lead-in>","options":[{"letter":"A","text":"<verbatim choice>"}],"correct":null,"explanation":""}]}\n\n'+
+      'PDF TEXT:\n"""\n'+doc+'\n"""\nReturn only the JSON object.';
     const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],8000);
-    done++;onProg&&onProg('Extracting questions … '+done+'/'+chunks.length+' sections done');
+    done++;onProg&&onProg('Extracting questions … '+done+'/'+batches.length+' page groups done');
     const obj=parseJSON(resp);
     return (obj&&Array.isArray(obj.questions))?obj.questions:[];
   });
   let all=[];arrays.forEach(a=>{all=all.concat(a);});
-  // normalize
-  return all.filter(q=>q&&q.stem&&Array.isArray(q.options)&&q.options.length>=2).map(q=>({
-    number:q.number||'', stem:String(q.stem),
-    options:q.options.map((o,j)=>({letter:o.letter||String.fromCharCode(65+j),text:String(o.text||'')})),
-    correct:q.correct&&/^[A-Ea-e]$/.test(q.correct)?q.correct.toUpperCase():null,
-    explanation:q.explanation||''
-  }));
+  return normalizeQuestions(all);
 }
 function parseJSON(s){
   if(!s)return null;
@@ -1420,12 +1719,13 @@ async function renderPageForVision(page){
   const canvas=document.createElement('canvas');
   canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
   await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
-  // … and a smaller copy to send to the API (long edge ≤1568 keeps tokens/cost sane)
-  const apiMax=1568;let aw=canvas.width,ah=canvas.height;
+  // … and a detailed copy to send to the API. 1800 px keeps small option text
+  // readable without sending the full print-resolution page.
+  const apiMax=1800;let aw=canvas.width,ah=canvas.height;
   if(Math.max(aw,ah)>apiMax){const s=apiMax/Math.max(aw,ah);aw=Math.round(aw*s);ah=Math.round(ah*s);}
   const ac=document.createElement('canvas');ac.width=aw;ac.height=ah;
   ac.getContext('2d').drawImage(canvas,0,0,aw,ah);
-  return {canvas,apiURL:ac.toDataURL('image/jpeg',0.82)};
+  return {canvas,apiURL:ac.toDataURL('image/jpeg',0.9)};
 }
 function normBox(box){
   // accept [x0,y0,x1,y1] or {x0,y0,x1,y1} or {x,y,w,h}; accept 0-1, 0-100, 0-1000 scales
@@ -1502,9 +1802,9 @@ async function claudeVisionExtract(pdf,onProg){
     }
     const prompt='These are images of pages '+b.start+' through '+b.end+' of an exam PDF'+
       (b.ctx?(', plus page '+b.ctx+' as CONTEXT ONLY. Transcribe ONLY questions that BEGIN on pages '+b.start+'–'+b.end+'. If one of those questions continues onto page '+b.ctx+', include its full continuation text, and its figure may sit on page '+b.ctx+'; but do NOT transcribe any question that begins on page '+b.ctx+'.'):'.')+
-      ' Transcribe EVERY such multiple-choice question, verbatim. In each stem, PRESERVE the printed line structure with \\n: keep any "Laboratory studies show:"-style header on its own line, and put EACH laboratory/vital value on its own line exactly as printed (test name, then value with units) — never fold lab lines into a prose sentence. '+
+      ' Transcribe EVERY such multiple-choice question, verbatim. Reflow ordinary line-wrapped prose into its original paragraph, but preserve real blank lines between paragraphs. In each stem, keep any "Laboratory studies show:"-style header on its own line and put EACH laboratory/vital value on its own line exactly as printed (test name, then value with units) — never fold lab lines into a prose sentence. Put each answer choice in its own object without its leading letter. '+
       'For each question, if it includes a medical figure a student must see — radiograph (x-ray/CT/MRI), ultrasound, ECG/EKG, fetal heart tracing, histology/pathology slide, gross specimen, clinical/derm/fundus photo, gram stain, graph, or diagram — set "figure" to {"page": <the page number that figure is printed on>, "box": [x0,y0,x1,y1]} where the box is the figure’s rectangle as fractions of THAT page from the top-left corner (0,0) to bottom-right (1,1). The box must contain the ENTIRE figure edge to edge (err slightly large rather than clipping it); exclude the question text around it. A figure belongs to the question whose stem refers to it (e.g. "shown"); a figure printed between a stem and its answer options belongs to THAT question. If a question has no figure, set "figure" to null. '+
-      'Output ONLY this JSON: {"questions":[{"number":"<printed number or empty>","stem":"<verbatim vignette + lead-in>","options":[{"letter":"A","text":"<verbatim>"}],"correct":"A or null","explanation":"<verbatim or empty>","figure":null}]}';
+      'Output ONLY this JSON: {"questions":[{"sourcePage":1,"number":"<printed number or empty>","stem":"<verbatim vignette + lead-in>","options":[{"letter":"A","text":"<verbatim>"}],"correct":"A or null","explanation":"<verbatim or empty>","figure":null}]}';
     const content=[{type:'text',text:prompt}];
     rendered.forEach(rp=>{
       content.push({type:'text',text:'--- PAGE '+rp.page+(rp.page===b.ctx?' (CONTEXT ONLY)':'')+' ---'});
@@ -1552,12 +1852,7 @@ async function claudeVisionExtract(pdf,onProg){
     }
     seen[key]=q;deduped.push(q);
   }
-  return deduped.map(q=>({
-    number:q.number||'', stem:String(q.stem),
-    options:q.options.map((o,j)=>({letter:o.letter||String.fromCharCode(65+j),text:String(o.text||'')})),
-    correct:q.correct&&/^[A-Ea-e]$/.test(q.correct)?q.correct.toUpperCase():null,
-    explanation:q.explanation||'', images:Array.isArray(q.images)?q.images.filter(okImg):[]
-  }));
+  return normalizeQuestions(deduped);
 }
 
 /* =========================================================================
@@ -1768,22 +2063,25 @@ async function visionFilter(dataURLs,onProg){
 function renderReview(){
   const wrap=$('#reviewList');wrap.innerHTML='';
   state.questions.forEach((q,i)=>wrap.appendChild(reviewCard(q,i)));
-  $('#reviewCount').textContent=state.questions.length+' questions';
+  const issueCount=state.questions.reduce((n,q)=>n+(questionIssues(q).length?1:0),0);
+  $('#reviewCount').textContent=state.questions.length+' questions'+(issueCount?' · '+issueCount+' flagged for review':' · extraction checks passed');
   const rt=$('#rangeTo'),rf=$('#rangeFrom');
   if(rt){rt.max=state.questions.length;rt.value=state.questions.length;}
   if(rf){rf.max=state.questions.length;if(+rf.value<1)rf.value=1;}
 }
 function reviewCard(q,i){
   const el=document.createElement('div');el.className='qrev';
+  const issues=questionIssues(q);
   el.innerHTML=`
     <div class="top">
       <b>Q${i+1}</b>
       <span class="note">original #: ${esc(q.number||'—')}</span>
+      ${issues.length?'<span class="pill" style="color:var(--bad);border-color:var(--bad)" title="'+esc(issues.join(', '))+'">Check: '+esc(issues.join(', '))+'</span>':'<span class="pill" style="color:var(--good)">Looks complete</span>'}
       <div class="spacer" style="flex:1"></div>
       <button class="btn ghost sm" data-act="addopt">+ option</button>
       <button class="btn ghost sm" data-act="del">delete</button>
     </div>
-    <textarea data-f="stem" rows="3" placeholder="Question text (verbatim)">${esc(q.stem)}</textarea>
+    <textarea data-f="stem" rows="7" placeholder="Question text (verbatim)">${esc(q.stem)}</textarea>
     <div class="opts" data-opts></div>
     <div style="padding:8px 10px">
       <label class="fld">Explanation (verbatim, optional)</label>
@@ -1796,10 +2094,10 @@ function reviewCard(q,i){
       const row=document.createElement('div');row.className='optrow';
       row.innerHTML=`<input type="radio" name="cor-${i}" ${q.correct===o.letter?'checked':''} title="Mark correct">
         <span class="lt">${esc(o.letter)}</span>
-        <input type="text" value="${esc(o.text)}" data-opt="${j}">
+        <textarea rows="2" data-opt="${j}">${esc(o.text)}</textarea>
         <button class="btn ghost sm" data-act="delopt" data-j="${j}">✕</button>`;
       row.querySelector('input[type=radio]').onchange=()=>{q.correct=o.letter;};
-      row.querySelector('input[type=text]').oninput=e=>{o.text=e.target.value;};
+      row.querySelector('textarea').oninput=e=>{o.text=e.target.value;saveLiveQSoon();};
       row.querySelector('[data-act=delopt]').onclick=()=>{q.options.splice(j,1);relabel(q);drawOpts();};
       optsBox.appendChild(row);
     });
@@ -1871,6 +2169,7 @@ function startTest(){
   saveLiveQ();
   loadQuestion(0);
   if($('#focusLockOpt')&&$('#focusLockOpt').checked)armFocusLock(true);
+  if($('#attentionOpt')&&$('#attentionOpt').checked)startAttentionMonitor();
 }
 
 function curQ(){return state.questions[state.order[state.cur]];}
@@ -1914,7 +2213,7 @@ function renderStem(text){
     return null;
   };
   for(const line of lines){
-    if(/^\s*$/.test(line))continue;
+    if(/^\s*$/.test(line)){flushProse();continue;}
     const trimmed=line.trim();
     if(trimmed.length<80&&labTrigger.test(trimmed)){flushProse();labBias=14;continue;} // the section header replaces this line
     if(subHeader.test(trimmed)){flushProse();labRows.push({header:true,cells:[trimmed.replace(/:$/,'')]});labBias=Math.max(labBias,10);continue;}
@@ -1924,11 +2223,19 @@ function renderStem(text){
     prose.push(trimmed);
   }
   flushProse();
+  if(paras.length){
+    const last=paras[paras.length-1];
+    const m=/\b((?:which of the following|what is|what should|which (?:one|diagnosis|finding|treatment|test|study|drug)|the most (?:likely|appropriate)|the best next step)[\s\S]*\?)\s*$/i.exec(last);
+    if(m&&m.index>0){
+      const before=last.slice(0,m.index).trim();
+      if(before)paras.splice(paras.length-1,1,before,m[1].trim());
+    }
+  }
   const pHTML=p=>'<p>'+esc(p)+'</p>';
+  const isLead=p=>/\?\s*$/.test(p)||/^(which of the following|what is|what should|which one|the most (likely|appropriate)|the best next step)/i.test(p);
   const dataRows=labRows.filter(r=>!r.header);
-  if(!dataRows.length)return paras.map(pHTML).join('')||('<p>'+esc(String(text||''))+'</p>');
+  if(!dataRows.length)return paras.map(p=>isLead(p)?'<p class="leadin">'+esc(p)+'</p>':pHTML(p)).join('')||('<p>'+esc(String(text||''))+'</p>');
   // vignette first, labs in their own section, the lead-in question last
-  const isLead=p=>/\?\s*$/.test(p)||/^(which of the following|what is|which one|the most (likely|appropriate))/i.test(p);
   let leadStart=paras.length;
   while(leadStart>0&&isLead(paras[leadStart-1]))leadStart--;
   const before=paras.slice(0,leadStart),lead=paras.slice(leadStart);
@@ -1964,6 +2271,7 @@ function loadQuestion(i){
   // medical images for this question
   renderStemImages();
   if(state._rearmFocus){state._rearmFocus=false;armFocusLock(false);} // Focus Lock survives a refresh/resume
+  if(state._rearmAttention){state._rearmAttention=false;startAttentionMonitor();}
   // options
   renderOptions(q,a);
   // flag
@@ -1977,6 +2285,7 @@ function loadQuestion(i){
   $('#pauseBtn').classList.toggle('hidden',state.reviewMode);
   $('#suspendBtn').classList.toggle('hidden',state.reviewMode);
   $('#focusBtn').classList.toggle('hidden',state.reviewMode);
+  $('#attentionBtn').classList.toggle('hidden',state.reviewMode);
   // if tutor already submitted, or review mode → show feedback
   if(state.reviewMode||(state.mode==='tutor'&&a.submitted))showFeedback(q,a);
   renderNavMini();
@@ -2568,6 +2877,145 @@ function closeModal(){
 }
 
 /* =========================================================================
+   STAY AWAKE — on-device face landmarks. No frame is recorded or uploaded.
+   A normal blink is ignored; both eyes must remain closed. Looking away uses a
+   longer grace period because glancing at the timer or keyboard is normal.
+   ========================================================================= */
+const MP_VISION_VERSION='0.10.35';
+const MP_VISION_ROOT='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@'+MP_VISION_VERSION;
+const MP_FACE_MODEL='https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
+const voiceBuffers={wake:null,away:null};
+let attentionEnabled=false,attentionLoading=false,attentionStream=null,attentionLandmarker=null;
+let attentionRAF=null,attentionLastFrame=0,attentionBadKind=null,attentionBadSince=0,attentionGoodSince=0;
+const ATTENTION_DELAYS={closed:1500,missing:3000,away:4200};
+async function decodeVoiceClip(kind,blob){
+  if(!blob)return;
+  try{
+    const ctx=fEnsureAudio();if(!ctx)return;
+    const ab=await blob.arrayBuffer();
+    voiceBuffers[kind]=await ctx.decodeAudioData(ab.slice(0));
+  }catch(e){console.warn('Could not decode '+kind+' voice clip:',e);}
+}
+function attentionButton(stateName,detail){
+  const b=$('#attentionBtn');if(!b)return;
+  b.classList.toggle('on',stateName==='on');
+  b.classList.toggle('attention-warn',stateName==='warn');
+  b.textContent=stateName==='loading'?'…':'👁';
+  b.setAttribute('data-tip',detail||'Stay Awake monitor');
+}
+function stopAttentionMonitor(silent){
+  attentionLoading=false;attentionEnabled=false;
+  cancelAnimationFrame(attentionRAF);attentionRAF=null;
+  if(attentionStream)attentionStream.getTracks().forEach(t=>t.stop());
+  attentionStream=null;
+  const v=$('#attentionVideo');if(v){try{v.pause();}catch(e){}v.srcObject=null;}
+  attentionBadKind=null;attentionBadSince=0;attentionGoodSince=0;
+  if(_fAlarmSource&&_fAlarmSource.indexOf('attention')===0)fStopAlarm(true);
+  attentionButton('off','Stay Awake monitor');
+  if($('#attentionOpt'))$('#attentionOpt').checked=false;
+  if(!silent){saveLiveQ();saveLiveState();toast('Stay Awake monitor is off');}
+}
+function attentionFaceState(result){
+  if(!result||!result.faceLandmarks||!result.faceLandmarks.length)return 'missing';
+  const shapes=result.faceBlendshapes&&result.faceBlendshapes[0]&&result.faceBlendshapes[0].categories||[];
+  const scores={};shapes.forEach(c=>{scores[c.categoryName]=c.score||0;});
+  const blinkL=scores.eyeBlinkLeft||0,blinkR=scores.eyeBlinkRight||0;
+  if(blinkL>.62&&blinkR>.62)return 'closed';
+  const lm=result.faceLandmarks[0];
+  const e1=lm[33],e2=lm[263],nose=lm[1];
+  let headAway=false;
+  if(e1&&e2&&nose){
+    const left=Math.min(e1.x,e2.x),span=Math.abs(e2.x-e1.x);
+    const noseRatio=span>.01?(nose.x-left)/span:.5;
+    const faceCenter=(e1.x+e2.x)/2;
+    headAway=noseRatio<.22||noseRatio>.78||faceCenter<.12||faceCenter>.88||span<.055;
+  }
+  const gaze=Math.max(scores.eyeLookInLeft||0,scores.eyeLookOutLeft||0,scores.eyeLookInRight||0,scores.eyeLookOutRight||0);
+  return headAway||gaze>.78?'away':'good';
+}
+function updateAttentionState(kind,now){
+  const activeTest=attentionEnabled&&state.screen==='exam'&&!state.reviewMode&&!state.tPaused;
+  if(!activeTest){
+    attentionBadKind=null;attentionBadSince=0;attentionGoodSince=0;
+    attentionButton('on',state.tPaused?'Stay Awake paused with the timer':'Stay Awake monitor on');
+    if(_fAlarmSource==='attention-camera')fStopAlarm(true);
+    return;
+  }
+  if(kind==='good'){
+    attentionBadKind=null;attentionBadSince=0;
+    if(!attentionGoodSince)attentionGoodSince=now;
+    attentionButton('on','Watching — camera video stays on this device');
+    if(_fAlarmSource==='attention-camera'&&now-attentionGoodSince>900)fStopAlarm(false);
+    return;
+  }
+  attentionGoodSince=0;
+  if(attentionBadKind!==kind){attentionBadKind=kind;attentionBadSince=now;}
+  const elapsed=now-attentionBadSince,delay=ATTENTION_DELAYS[kind]||4000;
+  attentionButton(elapsed>=delay?'warn':'on',
+    kind==='closed'?'Eyes closed…':kind==='missing'?'Face not visible…':'Looking away…');
+  if(elapsed>=delay)fStartAlarm(kind==='closed'?'wake':'away','attention-camera');
+}
+function attentionLoop(now){
+  if(!attentionEnabled)return;
+  attentionRAF=requestAnimationFrame(attentionLoop);
+  if(now-attentionLastFrame<180)return;
+  const v=$('#attentionVideo');if(!v||v.readyState<2||!attentionLandmarker)return;
+  attentionLastFrame=now;
+  try{updateAttentionState(attentionFaceState(attentionLandmarker.detectForVideo(v,Math.round(now))),now);}
+  catch(e){
+    console.warn('Stay Awake frame failed:',e);
+    updateAttentionState('missing',now);
+  }
+}
+async function startAttentionMonitor(){
+  if(attentionEnabled||attentionLoading)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    if($('#attentionOpt'))$('#attentionOpt').checked=false;
+    toast('Camera monitoring needs HTTPS or localhost in a supported browser',4200);return;
+  }
+  attentionLoading=true;attentionButton('loading','Loading Stay Awake monitor…');
+  fEnsureAudio();fLoadAlarmBuffer();
+  try{
+    for(const kind of ['wake','away'])if(voiceClipBlobs[kind]&&!voiceBuffers[kind])await decodeVoiceClip(kind,voiceClipBlobs[kind]);
+    attentionStream=await navigator.mediaDevices.getUserMedia({video:{
+      facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:15,max:24}
+    },audio:false});
+    if(!attentionLandmarker){
+      const visionModule=await import(MP_VISION_ROOT+'/vision_bundle.mjs');
+      const files=await visionModule.FilesetResolver.forVisionTasks(MP_VISION_ROOT+'/wasm');
+      attentionLandmarker=await visionModule.FaceLandmarker.createFromOptions(files,{
+        baseOptions:{modelAssetPath:MP_FACE_MODEL},
+        runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true,
+        minFaceDetectionConfidence:.55,minFacePresenceConfidence:.55,minTrackingConfidence:.55
+      });
+    }
+    const v=$('#attentionVideo');v.srcObject=attentionStream;await v.play();
+    attentionStream.getVideoTracks()[0].addEventListener('ended',()=>stopAttentionMonitor(true),{once:true});
+    attentionLoading=false;attentionEnabled=true;
+    if($('#attentionOpt'))$('#attentionOpt').checked=true;
+    attentionButton('on','Watching — camera video stays on this device');
+    attentionBadKind=null;attentionBadSince=0;attentionGoodSince=0;attentionLastFrame=0;
+    attentionRAF=requestAnimationFrame(attentionLoop);
+    toast('Stay Awake is on — camera processing stays on this device',3600);
+    saveLiveState();
+  }catch(e){
+    (e&&e.name==='NotAllowedError'?console.warn:console.error)('Stay Awake start failed:',e);
+    if(attentionStream)attentionStream.getTracks().forEach(t=>t.stop());
+    attentionStream=null;attentionLoading=false;attentionEnabled=false;
+    attentionButton('off','Stay Awake monitor');
+    if($('#attentionOpt'))$('#attentionOpt').checked=false;
+    saveLiveQ();saveLiveState();
+    const msg=e&&e.name==='NotAllowedError'?'Camera permission was blocked. Allow it in the browser address bar and try again.'
+      :'Could not start Stay Awake: '+(e&&e.message?e.message:'camera/model failed');
+    toast(msg,5200);
+  }
+}
+$('#attentionBtn').onclick=()=>{
+  if(attentionLoading)return;
+  if(attentionEnabled)stopAttentionMonitor(false);else startAttentionMonitor();
+};
+
+/* =========================================================================
    FOCUS LOCK — web version of the FocusLock Mac app.
    Arms during a test. Leaving this tab (or clicking off the browser) sounds a
    siren + voice alarm (minimum 5-second blast). The only way to turn it off is
@@ -2578,6 +3026,7 @@ function closeModal(){
 const FOCUS_PHRASE='i am done with my test';
 const ALARM_URL='alarm.m4a'; // Chase's own recorded alarm, loops while the alarm blares
 let focusArmed=false,_fAudio=null,_fBuf=null,_fNodes=null,_fSpeakInt=null,_fAlarmAt=0,_fStopT=null,_fBlurT=null,_fCount=null;
+let _fAlarmSource=null,_fAlarmKind='away';
 /* MASTER LOCK — the appbar "🔒 Master" button. Same alarm + speak-to-unlock as Focus
    Lock, but guards on EVERY screen (not just during a test) and survives a refresh.
    Master lock never blocks moving around inside the site — it only fires when you
@@ -2630,16 +3079,19 @@ function disarmFocusLock(silent){
   if(was)saveLiveState();
 }
 function fAlarmActive(){return !!_fNodes;}
-function fStartAlarm(){
-  if(fAlarmActive()||!(focusArmed||masterLock))return;
+function fStartAlarm(kind='away',source='focus'){
+  const attentionSource=source.indexOf('attention')===0;
+  if(fAlarmActive()||(!attentionSource&&!(focusArmed||masterLock))||(attentionSource&&!attentionEnabled))return;
+  _fAlarmSource=source;_fAlarmKind=kind;
   _fAlarmAt=Date.now();
-  document.title='🚨 GET BACK TO YOUR TEST';
+  document.title=kind==='wake'?'🚨 WAKE UP':'🚨 GET BACK TO YOUR TEST';
   const ctx=fEnsureAudio();
   let nodes={};
-  if(ctx&&_fBuf){ // Chase's recording, looping — lives on the audio thread so it keeps
+  const chosenBuf=voiceBuffers[kind]||_fBuf;
+  if(ctx&&chosenBuf){ // custom clip or Chase's recording, looping on the audio thread
     try{         // blaring even while the tab is hidden/throttled
       const src=ctx.createBufferSource(),gain=ctx.createGain();
-      src.buffer=_fBuf;src.loop=true;
+      src.buffer=chosenBuf;src.loop=true;
       gain.gain.value=1.0;src.connect(gain);gain.connect(ctx.destination);
       src.start();
       nodes={src,gain};
@@ -2659,7 +3111,7 @@ function fStartAlarm(){
   _fNodes=nodes;
   if(!nodes.src&&('speechSynthesis' in window)){ // spoken fallback rides along with the siren
     const speak=()=>{ if(!fAlarmActive())return;
-      try{const u=new SpeechSynthesisUtterance('Get back to your test!');u.volume=1;u.rate=1.05;
+      try{const u=new SpeechSynthesisUtterance(kind==='wake'?'Wake up!':'Get back to the test, bitch!');u.volume=1;u.rate=1.05;
         speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}
     };
     speak();clearInterval(_fSpeakInt);_fSpeakInt=setInterval(speak,3000);
@@ -2667,6 +3119,7 @@ function fStartAlarm(){
 }
 function fStopAlarm(force){
   if(!fAlarmActive())return;
+  if(!force&&_fAlarmSource==='attention-camera'&&attentionBadKind)return;
   const since=Date.now()-_fAlarmAt;
   if(!force&&since<5000){ // minimum 5-second blast, like the Mac app
     clearTimeout(_fStopT);_fStopT=setTimeout(()=>fStopAlarm(false),5000-since+60);return;
@@ -2675,14 +3128,17 @@ function fStopAlarm(force){
   try{if('speechSynthesis' in window)speechSynthesis.cancel();}catch(e){}
   try{_fNodes.src&&_fNodes.src.stop();}catch(e){}
   try{_fNodes.osc&&_fNodes.osc.stop();_fNodes.lfo&&_fNodes.lfo.stop();}catch(e){}
-  _fNodes=null;document.title=PAGE_TITLE;
+  _fNodes=null;_fAlarmSource=null;_fAlarmKind='away';document.title=PAGE_TITLE;
 }
-function fShouldGuard(){return masterLock||(focusArmed&&state.screen==='exam'&&!state.reviewMode);}
+function fShouldGuard(){
+  return masterLock||((focusArmed||attentionEnabled)&&state.screen==='exam'&&!state.reviewMode);
+}
 function fAway(){
   if(!fShouldGuard())return;
-  if(document.visibilityState==='hidden'){fStartAlarm();return;} // tab switched / minimized — instant
+  const source=attentionEnabled&&state.screen==='exam'?'attention-tab':'focus';
+  if(document.visibilityState==='hidden'){fStartAlarm('away',source);return;} // tab switched / minimized — instant
   clearTimeout(_fBlurT); // window blur (clicked another app): short grace so dialogs don't false-alarm
-  _fBlurT=setTimeout(()=>{ if(fShouldGuard()&&(document.visibilityState==='hidden'||!document.hasFocus()))fStartAlarm(); },700);
+  _fBlurT=setTimeout(()=>{ if(fShouldGuard()&&(document.visibilityState==='hidden'||!document.hasFocus()))fStartAlarm('away',source); },700);
 }
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden')fAway(); else fStopAlarm(false); });
 window.addEventListener('blur',fAway);
@@ -2823,6 +3279,7 @@ function doEndTest(){
 $('#endBtn').onclick=()=>{ if(focusGuard(doEndTest))return; doEndTest(); };
 function endTest(){
   disarmFocusLock(true);
+  stopAttentionMonitor(true);
   stopTimer(true);
   // finalize correctness for all
   state.questions.forEach((q,i)=>{
@@ -3243,6 +3700,7 @@ function openSession(id){
    init
    ========================================================================= */
 applySettingsToUI();
+loadVoiceClips();
 $('#heroStart')&&($('#heroStart').onclick=()=>{const d=$('#drop');if(d)d.scrollIntoView({behavior:'smooth',block:'center'});});
 if(!tryResume())showScreen('setup');
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
