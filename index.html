@@ -134,15 +134,16 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
    No card, no frame: each lab is its own translucent chip, the stack fades out
    at both ends, and scrolled rows tilt away from center like a picker wheel
    (the transform is set from JS in labWheel()). It is positioned, never a flex
-   child, so it overlays the question instead of squeezing it. Text uses --ink,
-   i.e. always the opposite of the theme. */
+   child, so the question text never reflows when it appears — instead .exbody
+   reserves the panel's strip (below) so the two can never overlap. Text uses
+   --ink, i.e. always the opposite of the theme. */
 .exmain{flex:1;position:relative;min-height:0;display:flex}
 .exmain>.exbody{flex:1;min-width:0}
-.labside{position:absolute;top:16px;right:20px;max-height:calc(100% - 32px);width:236px;z-index:40;
+.labside{position:absolute;top:50%;right:20px;transform:translateY(-50%);max-height:calc(100% - 32px);width:236px;z-index:40;
   display:flex;flex-direction:column;overflow:hidden;color:var(--ink);
   animation:labside-in .3s ease}
 .labside.hidden{display:none}
-@keyframes labside-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes labside-in{from{opacity:0;transform:translateY(calc(-50% + 8px))}to{opacity:1;transform:translateY(-50%)}}
 .labside-head{display:flex;justify-content:center;padding:0 0 8px}
 .labside-head b{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--ink);
   padding:4px 12px;border-radius:99px;background:var(--glass);border:1px solid var(--glassline);
@@ -163,11 +164,11 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
 .labside-row .n{display:block;color:var(--ink);font-size:12px;line-height:1.35}
 .labside-row .v{display:block;font-family:var(--mono);font-variant-numeric:tabular-nums;
   color:var(--ink);opacity:.72;font-size:11.5px;line-height:1.4;margin-top:1px;white-space:normal}
-/* Keeping the question centred on the whole viewport would run it under the
-   panel on anything below ~1460px. Instead of shrinking the text column (which
-   would reflow the question), reserve the panel's strip so the column simply
-   sits left of it — same width, same line breaks, just not squeezed. */
-@media (max-width:1300px){ .exmain.labson>.exbody{padding-right:260px} }
+/* The panel must NEVER sit over the question at any viewport width. Reserve
+   its strip whenever it is open: the text column (and any figure or lab box in
+   the stem) re-centres in the remaining space — same width, same line breaks,
+   just moved over to the left. */
+.exmain.labson>.exbody{padding-right:260px}
 /* below this there is no margin left to float in at all */
 @media (max-width:1040px){ .labside{display:none} .exmain.labson>.exbody{padding-right:0} }
 
@@ -229,7 +230,7 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
 .labtable tr.subgroup td.lk{padding-left:16px}
 .leadin{font-weight:600;margin-top:14px}
 /* each answer choice is its own translucent, frosted button the option rides on */
-.opts{max-width:760px;margin:22px auto 0;padding:0 20px;display:flex;flex-direction:column;gap:9px}
+.opts{max-width:600px;margin:22px auto 0;padding:0 20px;display:flex;flex-direction:column;gap:9px}
 .opt{display:flex;align-items:center;gap:13px;border:1px solid var(--optline);border-radius:14px;padding:13px 15px;
   background:var(--optbg);-webkit-backdrop-filter:blur(10px) saturate(1.3);backdrop-filter:blur(10px) saturate(1.3);
   box-shadow:0 2px 8px rgba(28,43,42,.05);cursor:pointer;
@@ -2285,7 +2286,6 @@ function loadQuestion(i){
   if(!state.reviewMode)saveLiveState();
 }
 
-let elimPrevSel=null; // selection before a click, so a double-click cross-out can restore it
 function renderOptions(q,a){
   const box=$('#opts');box.innerHTML='';
   const reveal=state.reviewMode||(state.mode==='tutor'&&a.submitted);
@@ -2301,23 +2301,14 @@ function renderOptions(q,a){
       (reveal?'':`<button class="elimbtn" title="Cross out">✕</button>`)+
       (reveal&&q.correct&&o.letter===q.correct?'<span class="stat">✓ correct</span>':'');
     if(!reveal){
-      el.querySelector('.otext').onclick=el.querySelector('.lt').onclick=()=>selectOpt(o.letter);
+      /* the WHOLE row selects — not just the letter and the text spans, whose
+         gaps and padding swallowed clicks */
+      el.onclick=()=>selectOpt(o.letter);
       el.querySelector('.elimbtn').onclick=e=>{e.stopPropagation();toggleElim(o.letter);};
-      /* cross out without aiming for the ✕: right-click (two-finger click) or
-         double-click. A double-click's first click also SELECTS the choice, so
-         remember what was selected beforehand and put it back — crossing out
-         must never quietly answer the question for you. */
-      el.onmousedown=()=>{elimPrevSel=curA().selected;};
+      /* cross out without aiming for the ✕: right-click / two-finger click
+         (long-press on touch) ONLY — never double-click/double-tap, which
+         collides with fast answer picking */
       el.oncontextmenu=e=>{e.preventDefault();toggleElim(o.letter);};
-      el.ondblclick=e=>{
-        e.preventDefault();
-        const a=curA();
-        if(a.selected===o.letter&&elimPrevSel!==o.letter){
-          a.selected=elimPrevSel;
-          if(a.answerChanges.length)a.answerChanges.pop(); // and don't log it as an answer change
-        }
-        toggleElim(o.letter);
-      };
     }
     box.appendChild(el);
   });
@@ -3343,7 +3334,8 @@ function renderResults(s){
 
 $('#exportSession').onclick=()=>{
   const s=state.curSession;if(!s){toast('No session');return;}
-  download(s.name.replace(/\.pdf$/i,'')+'-session.json',JSON.stringify(s,null,2));
+  // a session only exists after Submit, so the file says so in its name
+  download(s.name.replace(/\.pdf$/i,'')+' - full test done - session.json',JSON.stringify(s,null,2));
 };
 function download(name,text){
   const b=new Blob([text],{type:'application/json'});const u=URL.createObjectURL(b);
@@ -3358,7 +3350,10 @@ function exportTest(){
     options:collectOptions(), questions:state.questions,
     progress:{order:state.order,cur:state.cur,attempts:state.attempts,mode:state.mode,startedAt:state.startedAt,
       inExam:(state.screen==='exam')}};
-  download((state.pdfName||'qbank-test').replace(/\.pdf$/i,'')+'.qbank.json',JSON.stringify(payload));
+  // name the file by how far the test has gotten, so saves are tellable apart
+  let last=0;state.order.forEach((qi,k)=>{const a=state.attempts[qi];if(a&&a.selected)last=k+1;});
+  const tag=!state.order.length?' - not started':last?` - up to Q${last} of ${state.order.length}`:' - started, none answered';
+  download((state.pdfName||'qbank-test').replace(/\.pdf$/i,'')+tag+'.qbank.json',JSON.stringify(payload));
   toast('Saved your test to a file');
 }
 function importTest(file){
