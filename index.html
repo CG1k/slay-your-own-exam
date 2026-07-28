@@ -598,6 +598,7 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       <button class="navtoggle" id="navToggle" title="Jump to any question">
         <b id="navToggleLabel">Item 1 of 1</b><span class="ansct" id="navToggleCount"></span><span class="car">▲</span>
       </button>
+      <button class="btn ghost sm" id="kbHelpBtn" title="Keyboard shortcuts — or just press ?">⌨</button>
       <div class="spacer"></div>
       <button class="btn sm hidden" id="submitBtn">Submit</button>
       <button class="btn ghost sm" id="exportTestBtn2" title="Save this test and your progress to a file">⤓ Save file</button>
@@ -2482,6 +2483,77 @@ $('#navToggle').onclick=()=>{
 function nextQuestion(){if(state.cur<state.order.length-1)loadQuestion(state.cur+1);else if(!state.reviewMode)endTest();}
 $('#nextBtn').onclick=nextQuestion;
 $('#prevBtn').onclick=()=>{if(state.cur>0)loadQuestion(state.cur-1);};
+
+/* ---- keyboard navigation: drive the whole test without the mouse ----
+   A–E (or 1–9) pick an answer, Shift+letter crosses it out, ←/→ or N/P move,
+   Enter submits (tutor) or advances, Space pauses, M flags ("mark"), L labs,
+   G question grid, ? shows the cheat-sheet. Plain letters double as option
+   picks, so every non-option shortcut uses a letter no question will own. */
+function kbInField(e){const t=e.target;return !!t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);}
+document.addEventListener('keydown',e=>{
+  if(state.screen!=='exam'||!state.order.length)return;
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  if(kbInField(e))return;
+  if($('#modalRoot').firstChild){if(e.key==='Escape'){e.preventDefault();closeModal();}return;}
+  const q=curQ(),a=curA();if(!q||!a)return;
+  const locked=state.reviewMode||(state.mode==='tutor'&&a.submitted); // answered & revealed → picks are frozen
+  const k=e.key;
+  // answer choices — the letter itself (A–I), Shift+letter to cross out
+  if(k.length===1&&/[a-i]/i.test(k)&&!locked){
+    const L=k.toUpperCase();
+    if(q.options.some(o=>o.letter===L)){
+      e.preventDefault();
+      if(e.shiftKey)toggleElim(L);else selectOpt(L);
+      return;
+    }
+  }
+  // digits map to option position: 1 = first choice, 2 = second …
+  if(/^[1-9]$/.test(k)&&!locked){
+    const o=q.options[+k-1];
+    if(o){e.preventDefault();selectOpt(o.letter);return;}
+  }
+  switch(k){
+    case 'ArrowRight': e.preventDefault();nextQuestion();break;
+    case 'ArrowLeft': e.preventDefault();if(state.cur>0)loadQuestion(state.cur-1);break;
+    case 'n': case 'N': e.preventDefault();nextQuestion();break;
+    case 'p': case 'P': e.preventDefault();if(state.cur>0)loadQuestion(state.cur-1);break;
+    case 'Enter':
+      e.preventDefault();
+      if(state.mode==='tutor'&&!a.submitted&&!state.reviewMode)$('#submitBtn').click();
+      else nextQuestion();
+      break;
+    case ' ':
+      if(state.reviewMode)break;
+      e.preventDefault();$('#pauseBtn').click();break;
+    case 'm': case 'M':
+      if(state.reviewMode)break;
+      e.preventDefault();$('#flagBtn').click();break;
+    case 'l': case 'L': e.preventDefault();openLabs();break;
+    case 'g': case 'G': e.preventDefault();$('#navToggle').click();break;
+    case '?': e.preventDefault();showKbHelp();break;
+    case 'Escape':
+      if(!$('#navPanel').classList.contains('hidden')){e.preventDefault();closeNavPanel();}
+      break;
+  }
+});
+function showKbHelp(){
+  const row=(keys,what)=>'<tr><td style="padding:4px 14px 4px 0;white-space:nowrap">'+keys+'</td><td style="padding:4px 0;color:var(--muted,#888)">'+what+'</td></tr>';
+  const kk=s=>'<code>'+s+'</code>';
+  openModal('Keyboard shortcuts','<table style="border-collapse:collapse;font-size:14px">'+
+    row(kk('A')+'–'+kk('E')+' or '+kk('1')+'–'+kk('9'),'Select that answer choice')+
+    row(kk('Shift')+' + letter','Cross out that choice')+
+    row(kk('→')+' or '+kk('N'),'Next question (ends the test on the last one)')+
+    row(kk('←')+' or '+kk('P'),'Previous question')+
+    row(kk('Enter'),'Submit answer (tutor mode) · otherwise next question')+
+    row(kk('Space'),'Pause / resume the timer')+
+    row(kk('M'),'Mark (flag) this question')+
+    row(kk('L'),'Lab values')+
+    row(kk('G'),'Question grid — jump anywhere')+
+    row(kk('Esc'),'Close a panel or window')+
+    row(kk('?'),'This cheat-sheet')+
+    '</table>');
+}
+$('#kbHelpBtn').onclick=showKbHelp;
 function doSuspend(){ // UWorld-style: back to the menu with everything saved; resume any time
   suspendLiveTest();
   showScreen('setup');
