@@ -1350,7 +1350,42 @@ function pageTextLines(content,pageWidth){
   const items=(content.items||[]).filter(it=>it&&typeof it.str==='string'&&it.str.length).map(it=>({
     text:it.str,x:Number(it.transform&&it.transform[4])||0,y:Number(it.transform&&it.transform[5])||0,
     width:Math.abs(Number(it.width)||0),height:Math.max(6,Math.abs(Number(it.transform&&it.transform[3])||Number(it.height)||10))
-  })).sort((a,b)=>b.y-a.y||a.x-b.x);
+  }));
+  return assembleLines(items,2);
+}
+/* Two-column pages must be read column-by-column, not straight across — reading
+   across interleaves the columns and shreds every sentence. Look for a vertical
+   gutter that (almost) no text item crosses, with real text on both sides. */
+function splitAtGutter(items){
+  if(items.length<14)return null;
+  let minX=Infinity,maxX=-Infinity;
+  for(const it of items){if(it.x<minX)minX=it.x;if(it.x+it.width>maxX)maxX=it.x+it.width;}
+  const span=maxX-minX;if(span<180)return null;
+  let best=null;
+  for(let f=0.30;f<=0.70;f+=0.02){
+    const cut=minX+span*f;
+    let cross=0,left=0,right=0;
+    for(const it of items){
+      if(it.x+it.width<=cut+2)left++;
+      else if(it.x>=cut-2)right++;
+      else cross++;
+    }
+    if(left>=items.length*0.22&&right>=items.length*0.22&&cross<=Math.max(1,items.length*0.02)&&
+       (!best||cross<best.cross))best={cut,cross};
+  }
+  if(!best)return null;
+  return [items.filter(it=>it.x+it.width<=best.cut+2),items.filter(it=>it.x+it.width>best.cut+2)];
+}
+function assembleLines(items,depth){
+  if(depth>0){
+    const cols=splitAtGutter(items);
+    if(cols){
+      const left=assembleLines(cols[0],depth-1),right=assembleLines(cols[1],depth-1);
+      if(left.length&&right.length)return left.concat([''],right);
+      return left.concat(right);
+    }
+  }
+  items=items.slice().sort((a,b)=>b.y-a.y||a.x-b.x);
   const rows=[];
   for(const it of items){
     let row=null;
@@ -1375,9 +1410,10 @@ function pageTextLines(content,pageWidth){
         const gap=it.x-endX;
         const charW=Math.max(2.5,Math.min(12,((last.width/(last.text.length||1))+(it.width/(it.text.length||1)))/2));
         if(gap>Math.max(row.height*1.05,charW*3.2)){
-          const spaces=Math.max(3,Math.min(12,Math.round(gap/charW)));
-          line+=' '.repeat(spaces);
-        }else if(gap>charW*.18&&!/\s$/.test(line)&&!/^\s/.test(it.text))line+=' ';
+          /* a real horizontal jump (table cell / label–value pair) — keep it
+             readable with a short fixed separator, never a wall of spaces */
+          line+='   ';
+        }else if(gap>charW*.28&&!/\s$/.test(line)&&!/^\s/.test(it.text))line+=' ';
       }
       line+=it.text;endX=Math.max(it.x+it.width,endX==null?-Infinity:endX);last=it;
     }
@@ -1501,6 +1537,7 @@ $('#extractBtn').onclick=async()=>{
 function cleanExtractedText(value){
   return String(value==null?'':value).normalize('NFC')
     .replace(/\u00ad/g,'').replace(/[\u200b-\u200d\ufeff]/g,'').replace(/\u00a0/g,' ')
+    .replace(/([a-z])-\n([a-z])/g,'$1$2') // re-join words the PDF hyphen-broke across lines
     .replace(/\r/g,'').split('\n').map(line=>line.replace(/[ \t]+$/,'')).join('\n')
     .replace(/\n{3,}/g,'\n\n').trim();
 }
