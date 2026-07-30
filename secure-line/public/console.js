@@ -162,6 +162,8 @@ async function refreshState() {
   $('clinicName').value = data.thread.clinicName || '';
   $('providerName').value = data.thread.providerName || '';
   $('securityQuestion').value = data.thread.securityQuestion || '';
+  $('noticeTitle').value = data.thread.noticeTitle || '';
+  $('noticeBody').value = data.thread.noticeBody || '';
   // A stored question that isn't the generated one was written by hand; leave it be.
   questionEdited =
     Boolean(data.thread.securityQuestion) &&
@@ -194,6 +196,8 @@ $('setup-form').addEventListener('submit', async (e) => {
       providerName: $('providerName').value,
       securityQuestion: $('securityQuestion').value,
       answer: $('answer').value,
+      noticeTitle: $('noticeTitle').value,
+      noticeBody: $('noticeBody').value,
       purgeAfterMinutes: $('purgeAfterMinutes').value,
       expiresDays: $('expiresDays').value,
     }),

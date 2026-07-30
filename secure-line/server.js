@@ -192,6 +192,14 @@ const questionFor = (provider) => `What is ${provider || DEFAULT_PROVIDER}'s fir
 
 const DEFAULT_QUESTION = questionFor(DEFAULT_PROVIDER);
 
+// Shown once she is through the sign-in. Reads as a provider's note; the words
+// are the operator's own.
+const DEFAULT_NOTICE_TITLE = 'Important';
+const DEFAULT_NOTICE_BODY = [
+  'Your safety, your comfort and health is my number one priority.',
+  'We will get there together at the pace you need.',
+].join('\n');
+
 /* ----------------------------- live updates ------------------------------ */
 
 const streams = new Set();
@@ -281,6 +289,8 @@ async function handleApi(req, res, url) {
             providerName: t.providerName,
             securityQuestion: t.securityQuestion,
             answerRequired: Boolean(t.answerHash),
+            noticeTitle: t.noticeTitle,
+            noticeBody: t.noticeBody,
             purgeAfterMinutes: t.purgeAfterMinutes,
             expiresAt: t.expiresAt,
             expired: threadExpired(t),
@@ -312,6 +322,8 @@ async function handleApi(req, res, url) {
       displayName: displayName.slice(0, 60),
       providerName: provider,
       securityQuestion: String(body.securityQuestion || questionFor(provider)).slice(0, 120),
+      noticeTitle: String(body.noticeTitle ?? DEFAULT_NOTICE_TITLE).slice(0, 80),
+      noticeBody: String(body.noticeBody ?? DEFAULT_NOTICE_BODY).slice(0, 1200),
       purgeAfterMinutes: purge,
       expiresAt: Date.now() + days * 86_400_000,
       answerSalt: answerFields.salt,
@@ -422,6 +434,8 @@ async function handleApi(req, res, url) {
       pageTitle: t.pageTitle,
       displayName: t.displayName,
       providerName: t.providerName,
+      noticeTitle: t.noticeTitle,
+      noticeBody: t.noticeBody,
     });
   }
 

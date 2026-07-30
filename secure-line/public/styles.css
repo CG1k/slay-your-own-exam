@@ -200,6 +200,42 @@ label {
   border-radius: 999px;
 }
 
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 32, 30, 0.45);
+}
+
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 26px 24px 22px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+}
+
+.modal h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  color: #1f6a5c;
+}
+
+.modal p {
+  margin: 0 0 12px;
+  line-height: 1.55;
+}
+
+.modal button {
+  width: 100%;
+  margin-top: 6px;
+}
+
 .view h2 {
   font-size: 1.12rem;
   margin: 14px 0 4px;

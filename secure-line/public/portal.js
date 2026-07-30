@@ -199,6 +199,30 @@ $('appt-form').addEventListener('submit', async (e) => {
   $('appt-done').hidden = false;
 });
 
+/* -------------------------------- notice --------------------------------- */
+
+function showNotice(title, body) {
+  if (!body || !body.trim()) return;
+
+  $('notice-title').textContent = title || 'Important';
+
+  const holder = $('notice-body');
+  holder.replaceChildren();
+  for (const line of body.split('\n')) {
+    if (!line.trim()) continue;
+    const p = document.createElement('p');
+    p.textContent = line.trim();
+    holder.append(p);
+  }
+
+  $('notice-overlay').hidden = false;
+  $('notice-ok').focus();
+}
+
+$('notice-ok').addEventListener('click', () => {
+  $('notice-overlay').hidden = true;
+});
+
 /* -------------------------------- startup -------------------------------- */
 
 async function start() {
@@ -219,6 +243,7 @@ async function start() {
   $('view-signin').hidden = true;
   $('portal').hidden = false;
   go('home');
+  showNotice(cfg.noticeTitle, cfg.noticeBody);
   connectStream();
 }
 
