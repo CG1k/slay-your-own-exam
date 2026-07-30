@@ -22,7 +22,8 @@ export const NOTICE_PRESETS = [
       'Good afternoon {{name}}, your recent diagnostic report includes findings ' +
       'that require attention. Please sign in to your patient portal to review ' +
       'your results and schedule an appointment or contact your provider within ' +
-      'the next 72 hours. {{link}}',
+      'the next 72 hours. {{link}} Thank you for trusting us with your care at ' +
+      '{{clinic}}.',
   },
   {
     id: 'code',

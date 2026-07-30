@@ -317,7 +317,7 @@ async function handleApi(req, res, url) {
     const purge = Math.min(Math.max(Number(body.purgeAfterMinutes) || 0, 0), 60 * 24 * 30);
 
     createThread({
-      clinicName: String(body.clinicName || 'Community Health Partners').slice(0, 80),
+      clinicName: String(body.clinicName || 'Chase Your Health').slice(0, 80),
       pageTitle: pageTitle.slice(0, 90),
       displayName: displayName.slice(0, 60),
       providerName: provider,

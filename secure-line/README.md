@@ -81,6 +81,46 @@ appears on her device.
 Keep the text boring. No name, no greeting, nothing about the situation — all of
 that belongs behind the link, not in a preview that lights up her lock screen.
 
+### Getting a number that texts for you
+
+Until you do this, "Send it" just hands you the text to send yourself. Twilio is
+the least painful of the three. Roughly fifteen minutes:
+
+1. Sign up at twilio.com and verify your own phone and email.
+2. In the console, **Phone Numbers → Buy a number**. Pick any local number with
+   SMS capability. About $1.15/month, plus well under a cent per text.
+3. From the Twilio dashboard copy the **Account SID** and **Auth Token**.
+4. Put all three into `.env`:
+
+   ```
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_FROM_NUMBER=+15551234567
+   ```
+
+5. Restart the app. "Twilio (SMS)" stops saying "not configured" and becomes
+   selectable in **Send it with**.
+
+Two things that trip people up. Trial accounts can only text numbers you have
+verified in the Twilio console — add a few dollars of credit to lift that.
+Second, US carriers require A2P 10DLC registration for application-sent texts;
+without it your messages may be filtered silently. Twilio walks you through it,
+it costs a few dollars, and approval usually lands within a day or two. Sole
+proprietor registration exists for individuals.
+
+Telnyx works the same way with `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER`.
+
+### About formatting
+
+SMS is plain text. There is no bold, italic, or colour — a message is
+characters and nothing else, so a name can't be emphasised in the text itself.
+Your options are ALL CAPS, or Unicode bold characters (𝐂𝐡𝐚𝐬𝐞), which most
+modern phones render but some older ones show as empty boxes.
+
+Where formatting does work is the portal. The clinic name is already set in
+bold, spaced capitals across the top of every screen, and the page title sits
+under it in large type.
+
 ### About iMessage
 
 There isn't one, and no service can honestly offer it. Apple publishes no API
