@@ -85,15 +85,17 @@ async function refreshState() {
   status.replaceChildren();
 
   const rows = [
-    ['Link', data.thread.link],
-    ['Recognition word', data.thread.recognitionHint],
-    ['Cover', data.thread.coverTheme],
+    ['Her link', data.thread.link],
+    ['Page title', data.thread.pageTitle],
+    ['Greeted as', data.thread.displayName],
+    ['Clinic name', data.thread.clinicName],
+    ['Sign-in', data.thread.pinRequired ? 'access code required' : 'link signs her in'],
     [
       'Messages deleted after',
       data.thread.purgeAfterMinutes ? `${data.thread.purgeAfterMinutes} min` : 'never',
     ],
     ['Link expires', new Date(data.thread.expiresAt).toLocaleString()],
-    ['Status', data.thread.expired ? 'EXPIRED — create a new line' : 'active'],
+    ['Status', data.thread.expired ? 'EXPIRED — build a new link' : 'active'],
   ];
 
   for (const [k, v] of rows) {
@@ -110,10 +112,11 @@ async function refreshState() {
   }
 
   // Pre-fill the form so edits start from what is live.
-  $('recognitionHint').value = data.thread.recognitionHint || '';
-  $('coverTheme').value = data.thread.coverTheme || 'weather';
-  $('purgeAfterMinutes').value = data.thread.purgeAfterMinutes ?? 60;
-  $('label').value = data.thread.label || '';
+  $('pageTitle').value = data.thread.pageTitle || '';
+  $('displayName').value = data.thread.displayName || '';
+  $('clinicName').value = data.thread.clinicName || '';
+  $('providerName').value = data.thread.providerName || '';
+  $('purgeAfterMinutes').value = data.thread.purgeAfterMinutes ?? 0;
 }
 
 /* --------------------------------- setup --------------------------------- */
@@ -125,8 +128,8 @@ $('setup-form').addEventListener('submit', async (e) => {
 
   if (currentLink) {
     const ok = confirm(
-      'This creates a NEW link and immediately breaks the old one. ' +
-        'If she has the old link, she will lose access. Continue?',
+      'This builds a NEW link and immediately breaks the old one. ' +
+        'If she already has the old link, she will lose access. Continue?',
     );
     if (!ok) return;
   }
@@ -135,22 +138,23 @@ $('setup-form').addEventListener('submit', async (e) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      recognitionHint: $('recognitionHint').value,
-      passphrase: $('passphrase').value,
-      coverTheme: $('coverTheme').value,
+      pageTitle: $('pageTitle').value,
+      displayName: $('displayName').value,
+      clinicName: $('clinicName').value,
+      providerName: $('providerName').value,
+      pin: $('pin').value,
       purgeAfterMinutes: $('purgeAfterMinutes').value,
       expiresDays: $('expiresDays').value,
-      label: $('label').value,
     }),
   });
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    err.textContent = data.error || 'Could not create the line.';
+    err.textContent = data.error || 'Could not build the portal.';
     err.hidden = false;
     return;
   }
-  $('passphrase').value = '';
+  $('pin').value = '';
   await refreshState();
 });
 
@@ -158,7 +162,7 @@ $('setup-form').addEventListener('submit', async (e) => {
 
 $('copy-link').addEventListener('click', async () => {
   if (!currentLink) {
-    $('notify-note').textContent = 'Create the line first.';
+    $('notify-note').textContent = 'Set up the portal first.';
     return;
   }
   try {
@@ -269,7 +273,7 @@ $('wipe').addEventListener('click', async () => {
 });
 
 $('destroy').addEventListener('click', async () => {
-  if (!confirm('Delete the line, the link, and every message? She loses access immediately.')) {
+  if (!confirm('Delete the portal, the link, and every message? She loses access immediately.')) {
     return;
   }
   await fetch('/api/owner/wipe', {

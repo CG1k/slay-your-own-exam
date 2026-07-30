@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body class="console-body">
-    <!-- Your side. Password-gated; never linked from anywhere. -->
+    <!-- Your side. Passcode-gated and never linked from anywhere. -->
     <main class="console">
       <section id="login-view" class="panel">
         <h1>Sign in</h1>
@@ -23,52 +23,52 @@
 
       <section id="app-view" hidden>
         <header class="console-head">
-          <h1>Secure line</h1>
+          <h1>Portal console</h1>
           <button id="logout" class="ghost-btn" type="button">Sign out</button>
         </header>
 
         <div class="panel">
-          <h2>1. Set up the line</h2>
+          <h2>1. Set up the portal</h2>
           <p class="hint">
-            Creating a new line cancels the old link and signs her out everywhere.
+            Saving here builds a brand new link. The old link stops working
+            immediately and anyone signed in with it is signed out.
           </p>
+
           <form id="setup-form" autocomplete="off">
-            <label for="recognitionHint">Recognition word — how she knows it's you</label>
-            <input
-              id="recognitionHint"
-              type="text"
-              placeholder="Something only you two would connect to you"
-            />
+            <label for="pageTitle">Page title — put your secret word in here</label>
+            <input id="pageTitle" type="text" placeholder="e.g. Patient Portal — Bluebird" />
             <p class="hint">
-              Shown in plain sight on the cover page. Pick something meaningless to
-              anyone else — an inside joke, a street you both know, a nickname.
+              This is the browser tab title and the heading she sees. It is how
+              she knows the portal is from you.
             </p>
 
-            <label for="passphrase">Passphrase — what she types to get in</label>
-            <input id="passphrase" type="text" placeholder="Agree on this in person if you can" />
-            <p class="hint">
-              She types this into the search box on the cover page. Anything else
-              just shows "no results".
-            </p>
+            <label for="displayName">Greet her as</label>
+            <input id="displayName" type="text" placeholder="The name she should see after Welcome," />
 
-            <label for="coverTheme">Cover page</label>
-            <select id="coverTheme">
-              <option value="weather">Weather forecast</option>
-              <option value="recipes">Recipes</option>
-              <option value="shopping">Shopping list</option>
-            </select>
+            <label for="clinicName">Clinic name shown on the page</label>
+            <input id="clinicName" type="text" placeholder="Community Health Partners" />
+            <p class="hint">Use a made-up name. Do not use a real clinic's name.</p>
+
+            <label for="providerName">Provider name shown in the message thread</label>
+            <input id="providerName" type="text" placeholder="your provider" />
+
+            <label for="pin">Access code (optional)</label>
+            <input id="pin" type="text" placeholder="Leave blank so the link signs her in" />
+            <p class="hint">
+              Blank means clicking the link signs her straight in, which is the
+              simplest thing for her. Setting a code means the link alone is not
+              enough — worth it only if you expect someone else to open it.
+            </p>
 
             <label for="purgeAfterMinutes">Delete messages after (minutes, 0 = keep)</label>
-            <input id="purgeAfterMinutes" type="number" min="0" max="20160" value="60" />
+            <input id="purgeAfterMinutes" type="number" min="0" max="43200" value="0" />
 
             <label for="expiresDays">Link stops working after (days)</label>
-            <input id="expiresDays" type="number" min="1" max="90" value="7" />
+            <input id="expiresDays" type="number" min="1" max="365" value="30" />
 
-            <label for="label">Label shown to her once she's in (optional)</label>
-            <input id="label" type="text" placeholder="e.g. It's me" />
-
-            <button type="submit">Create the line</button>
+            <button type="submit">Save and build the link</button>
           </form>
+
           <p id="setup-error" class="error" hidden></p>
           <div id="status" class="status" hidden></div>
         </div>
@@ -76,13 +76,17 @@
         <div class="panel">
           <h2>2. Send her the link</h2>
           <p class="hint">
-            Keep the text dull and about nothing. No name, no greeting, nothing
-            about the situation — all of that lives behind the link.
+            The text goes out from this site's own number, not your phone. Your
+            number is never shown to her or to anyone reading her phone.
           </p>
 
           <label for="preset">Notification text</label>
           <select id="preset"></select>
           <textarea id="notice-body" rows="2"></textarea>
+          <p class="hint">
+            Keep it dull. No names, no greeting, nothing about the situation —
+            all of that lives behind the link.
+          </p>
 
           <label for="to">Her number (+15551234567)</label>
           <input id="to" type="tel" placeholder="+15551234567" autocomplete="off" />
@@ -97,6 +101,10 @@
 
         <div class="panel">
           <h2>3. Talk</h2>
+          <p class="hint">
+            This is what she sees under "Speak with your provider". Appointment
+            requests she submits land here too.
+          </p>
           <div id="log" class="log" aria-live="polite"></div>
           <form id="send-form" class="send" autocomplete="off">
             <textarea id="send-input" rows="1" placeholder="Message"></textarea>
@@ -104,7 +112,7 @@
           </form>
           <div class="row">
             <button id="wipe" class="ghost-btn" type="button">Clear messages</button>
-            <button id="destroy" class="danger-btn" type="button">Kill the line</button>
+            <button id="destroy" class="danger-btn" type="button">Shut the portal down</button>
           </div>
         </div>
       </section>

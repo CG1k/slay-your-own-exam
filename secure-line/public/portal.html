@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Patient Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="portal-body">
+    <!-- Sign-in. Only shown if the extra PIN is switched on, or if the link
+         has expired. The link on its own normally signs her straight in. -->
+    <section id="view-signin" class="portal-shell" hidden>
+      <div class="portal-card">
+        <p class="clinic-mark" id="signin-clinic">Patient Portal</p>
+        <h1>Sign in</h1>
+        <form id="pin-form" autocomplete="off">
+          <label for="pin">Access code</label>
+          <input
+            id="pin"
+            type="password"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+          <button type="submit">Sign in</button>
+        </form>
+        <p id="signin-error" class="error" hidden>We couldn't sign you in.</p>
+      </div>
+    </section>
+
+    <!-- Everything below is the portal proper. -->
+    <div id="portal" class="portal-shell" hidden>
+      <header class="portal-head">
+        <div>
+          <p class="clinic-mark" id="clinic-name">Community Health Partners</p>
+          <h1 id="page-title">Patient Portal</h1>
+        </div>
+        <button id="signout" class="ghost-btn" type="button">Sign out</button>
+      </header>
+
+      <!-- Dashboard -->
+      <section id="view-home" class="view">
+        <p class="welcome">Welcome, <span id="welcome-name">—</span></p>
+        <p class="portal-sub">Select an option below.</p>
+
+        <div class="tiles">
+          <button class="tile" type="button" data-go="messages">
+            <span class="tile-title">Speak with your provider</span>
+            <span class="tile-sub">Send a secure message</span>
+            <span class="tile-badge" id="tile-badge" hidden>New</span>
+          </button>
+          <button class="tile" type="button" data-go="results">
+            <span class="tile-title">View your results</span>
+            <span class="tile-sub">Labs and visit summaries</span>
+          </button>
+          <button class="tile" type="button" data-go="appointment">
+            <span class="tile-title">Schedule an appointment</span>
+            <span class="tile-sub">Request a visit time</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Secure messages: the real conversation -->
+      <section id="view-messages" class="view" hidden>
+        <button class="back" type="button" data-go="home">Back</button>
+        <h2>Secure message</h2>
+        <p class="portal-sub" id="messages-sub">You are connected with your provider.</p>
+
+        <div id="log" class="log" aria-live="polite"></div>
+
+        <form id="send-form" class="send" autocomplete="off">
+          <textarea
+            id="send-input"
+            rows="1"
+            placeholder="Type your message"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+          ></textarea>
+          <button type="submit">Send</button>
+        </form>
+
+        <div class="row">
+          <button id="wipe" class="ghost-btn" type="button">Clear this conversation</button>
+        </div>
+        <p class="fineprint">
+          Press <kbd>Esc</kbd> three times to leave this page immediately.
+        </p>
+      </section>
+
+      <!-- Results: a dead end that routes back to the conversation -->
+      <section id="view-results" class="view" hidden>
+        <button class="back" type="button" data-go="home">Back</button>
+        <h2>Your results</h2>
+        <div class="notice">
+          <p><strong>Identity confirmation required.</strong></p>
+          <p>
+            We can't display results until your identity has been confirmed with
+            your provider. Start a secure message and your provider will confirm
+            it with you directly.
+          </p>
+        </div>
+        <button type="button" data-go="messages">Speak with your provider</button>
+      </section>
+
+      <!-- Appointment: a working request form; the request reaches you -->
+      <section id="view-appointment" class="view" hidden>
+        <button class="back" type="button" data-go="home">Back</button>
+        <h2>Schedule an appointment</h2>
+
+        <form id="appt-form" autocomplete="off">
+          <label for="appt-when">Preferred day and time</label>
+          <input id="appt-when" type="text" placeholder="e.g. Tuesday morning" />
+
+          <label for="appt-reason">Reason for visit</label>
+          <textarea id="appt-reason" rows="3" placeholder="Briefly describe your concern"></textarea>
+
+          <button type="submit">Request appointment</button>
+        </form>
+
+        <div id="appt-done" class="notice" hidden>
+          <p><strong>Request received.</strong></p>
+          <p>Our office will follow up to confirm your appointment.</p>
+        </div>
+      </section>
+    </div>
+
+    <script src="/portal.js" type="module"></script>
+  </body>
+</html>

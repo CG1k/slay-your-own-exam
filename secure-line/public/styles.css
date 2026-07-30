@@ -1,13 +1,13 @@
-/* Two looks in one sheet: a deliberately ordinary cover page, and a plain
-   console for the owner. The cover should read as forgettable. */
+/* Two looks in one sheet: a plain patient portal for her, and a plain console
+   for you. The portal should read as unremarkable. */
 
 * {
   box-sizing: border-box;
 }
 
 /* Must outrank every display rule below. Without this, a class that sets
-   display (.chat is flex) beats the UA rule for [hidden] and the private
-   surface renders on top of the cover. */
+   display (.log is flex) beats the UA rule for [hidden] and hidden views
+   render anyway. */
 [hidden] {
   display: none !important;
 }
@@ -24,24 +24,24 @@ button {
   font: inherit;
   cursor: pointer;
   border-radius: 8px;
-  border: 1px solid #c3cad2;
-  background: #2f6fd0;
+  border: 1px solid transparent;
+  background: #1f6a5c;
   color: #fff;
-  padding: 10px 16px;
+  padding: 11px 18px;
 }
 
 button:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.06);
 }
 
 .ghost-btn {
   background: #fff;
   color: #33393f;
+  border-color: #c9d1d8;
 }
 
 .danger-btn {
   background: #b3271e;
-  border-color: #b3271e;
 }
 
 input,
@@ -85,187 +85,166 @@ label {
   margin-top: 12px;
 }
 
-/* ------------------------------ cover page ------------------------------- */
+/* ----------------------------- patient portal ---------------------------- */
 
-.cover-body {
-  background: #fff;
+.portal-body {
+  background: #f2f5f4;
 }
 
-.cover {
-  max-width: 640px;
+.portal-shell {
+  max-width: 680px;
   margin: 0 auto;
-  padding: 20px 18px 40px;
+  padding: 22px 18px 48px;
 }
 
-.cover-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #e4e8ec;
-  padding-bottom: 12px;
-}
-
-.cover-head h1 {
-  font-size: 1.25rem;
-  margin: 0;
-  font-weight: 600;
-}
-
-.exit-btn {
-  background: #fff;
-  color: #5d666f;
-  border-color: #d8dee4;
-  padding: 6px 12px;
-  font-size: 0.85rem;
-}
-
-.wx-now {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 26px 0 18px;
-}
-
-.wx-temp {
-  font-size: 3.4rem;
-  font-weight: 300;
-  letter-spacing: -2px;
-}
-
-.wx-cond {
-  font-weight: 600;
-}
-
-.wx-sub {
-  color: #5d666f;
-  font-size: 0.9rem;
-}
-
-.wx-week {
-  border-top: 1px solid #e4e8ec;
-}
-
-.wx-day {
-  display: flex;
-  justify-content: space-between;
-  padding: 11px 2px;
-  border-bottom: 1px solid #f0f3f5;
-  color: #33393f;
-  font-size: 0.95rem;
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  padding: 20px 0;
-}
-
-.mini-card {
-  border: 1px solid #e4e8ec;
-  border-radius: 10px;
-  padding: 14px;
-}
-
-.mini-card h3 {
-  margin: 0 0 6px;
-  font-size: 0.98rem;
-}
-
-.mini-card p {
-  margin: 0;
-  color: #5d666f;
-  font-size: 0.85rem;
-}
-
-.list {
-  list-style: none;
-  margin: 20px 0;
-  padding: 0;
-}
-
-.list li {
-  display: flex;
-  justify-content: space-between;
-  padding: 11px 2px;
-  border-bottom: 1px solid #f0f3f5;
-}
-
-.unlock {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: end;
-  margin-top: 22px;
-}
-
-.unlock label {
-  grid-column: 1 / -1;
-  margin-bottom: 0;
-}
-
-.saved-row {
-  color: #5d666f;
-  font-size: 0.85rem;
-  margin-top: 12px;
-}
-
-#recognition {
-  color: #33393f;
-  font-weight: 600;
-}
-
-.cover-error {
-  color: #5d666f;
-  font-size: 0.9rem;
-}
-
-/* -------------------------------- chat ----------------------------------- */
-
-.chat {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 16px 18px 28px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.chat-head {
+.portal-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
-  border-bottom: 1px solid #e4e8ec;
-  padding-bottom: 12px;
+  gap: 14px;
+  border-bottom: 1px solid #dfe6e4;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
 }
 
-.chat-sub {
+.clinic-mark {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #1f6a5c;
+  font-weight: 700;
+}
+
+.portal-head h1 {
+  margin: 4px 0 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.portal-card {
+  background: #fff;
+  border: 1px solid #dfe6e4;
+  border-radius: 12px;
+  padding: 26px;
+  max-width: 400px;
+  margin: 60px auto 0;
+}
+
+.portal-card h1 {
+  margin: 8px 0 0;
+  font-size: 1.25rem;
+}
+
+.portal-card button {
+  margin-top: 18px;
+  width: 100%;
+}
+
+.welcome {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.portal-sub {
+  color: #5d666f;
+  margin: 4px 0 20px;
+  font-size: 0.92rem;
+}
+
+.tiles {
+  display: grid;
+  gap: 12px;
+}
+
+.tile {
+  position: relative;
+  display: block;
+  text-align: left;
+  background: #fff;
+  color: inherit;
+  border: 1px solid #dfe6e4;
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.tile:hover {
+  border-color: #1f6a5c;
+  filter: none;
+}
+
+.tile-title {
+  display: block;
+  font-weight: 600;
+  font-size: 1.02rem;
+}
+
+.tile-sub {
   display: block;
   color: #5d666f;
-  font-size: 0.82rem;
+  font-size: 0.86rem;
+  margin-top: 2px;
 }
 
-.chat-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.tile-badge {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: #1f6a5c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
-.chat-actions button {
-  padding: 6px 12px;
-  font-size: 0.85rem;
+.view h2 {
+  font-size: 1.12rem;
+  margin: 14px 0 4px;
 }
+
+.back {
+  background: none;
+  border: none;
+  color: #1f6a5c;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.notice {
+  background: #fff;
+  border: 1px solid #dfe6e4;
+  border-left: 4px solid #c9a227;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 14px 0 18px;
+}
+
+.notice p {
+  margin: 0 0 8px;
+}
+
+.notice p:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------- chat ---------------------------------- */
 
 .log {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 220px;
-  max-height: 55vh;
+  overflow-y: auto;
+  padding: 16px;
+  margin: 14px 0;
+  min-height: 200px;
+  max-height: 52vh;
+  background: #fff;
+  border: 1px solid #dfe6e4;
+  border-radius: 12px;
 }
 
 .bubble {
@@ -277,7 +256,7 @@ label {
 
 .bubble.mine {
   align-self: flex-end;
-  background: #2f6fd0;
+  background: #1f6a5c;
   color: #fff;
 }
 
@@ -302,14 +281,12 @@ label {
   grid-template-columns: 1fr auto;
   gap: 8px;
   align-items: end;
-  border-top: 1px solid #e4e8ec;
-  padding-top: 12px;
 }
 
 .fineprint {
   color: #5d666f;
   font-size: 0.78rem;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
 }
 
 kbd {
@@ -358,6 +335,22 @@ kbd {
   margin-top: 16px;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+.checkbox-row label {
+  margin: 0;
+  font-weight: 500;
+}
+
 .status {
   margin-top: 16px;
   border-top: 1px solid #e4e8ec;
@@ -373,7 +366,7 @@ kbd {
 
 .status-key {
   color: #5d666f;
-  min-width: 165px;
+  min-width: 170px;
 }
 
 .status-val {
@@ -388,5 +381,8 @@ kbd {
   }
   .status-key {
     min-width: 0;
+  }
+  .portal-card {
+    margin-top: 24px;
   }
 }

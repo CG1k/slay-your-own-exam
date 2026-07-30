@@ -8,10 +8,26 @@
  */
 
 export const NOTICE_PRESETS = [
-  { id: 'reminder', label: 'Generic reminder', body: 'Reminder: your saved item is ready. {{link}}' },
-  { id: 'weather', label: 'Weather alert', body: 'Local forecast update for your area: {{link}}' },
-  { id: 'delivery', label: 'Delivery update', body: 'Delivery update for order #4471: {{link}}' },
-  { id: 'deals', label: 'Weekly deals', body: 'Your weekly deals are here: {{link}}. Reply STOP to end.' },
+  {
+    id: 'portal',
+    label: 'Portal message waiting',
+    body: 'You have a new message in your patient portal: {{link}}',
+  },
+  {
+    id: 'reminder',
+    label: 'Appointment reminder',
+    body: 'Reminder: please review your upcoming visit details: {{link}}',
+  },
+  {
+    id: 'results',
+    label: 'Results ready',
+    body: 'Your recent results are ready to view: {{link}}',
+  },
+  {
+    id: 'generic',
+    label: 'Generic reminder',
+    body: 'Reminder: your saved item is ready. {{link}}',
+  },
   { id: 'bare', label: 'Link only', body: '{{link}}' },
 ];
 

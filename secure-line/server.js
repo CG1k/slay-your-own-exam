@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import {
   getThread,
   createThread,
-  updateThread,
   addMessage,
   listMessages,
   wipeMessages,
@@ -32,9 +31,7 @@ const PUBLIC_DIR = resolve(ROOT, 'public');
 const PORT = Number(process.env.PORT || 3000);
 
 const OWNER_TTL = 8 * 60 * 60_000; // 8 hours
-const GUEST_TTL = 30 * 60_000; // 30 minutes idle
-
-const COVER_THEMES = ['weather', 'recipes', 'shopping'];
+const GUEST_TTL = 12 * 60 * 60_000; // 12 hours, refreshed on use
 
 /* ------------------------------- utilities ------------------------------- */
 
@@ -172,9 +169,14 @@ function clientKey(req) {
   );
 }
 
+function tokenIsValid(token) {
+  const t = getThread();
+  return Boolean(t && !threadExpired(t) && token && token === t.token);
+}
+
 /* ----------------------------- live updates ------------------------------ */
 
-const streams = new Set(); // { res, role }
+const streams = new Set();
 
 function broadcast(event, payload) {
   const frame = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -187,7 +189,7 @@ function broadcast(event, payload) {
   }
 }
 
-function openStream(req, res, role) {
+function openStream(req, res) {
   baseHeaders(res);
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
@@ -195,14 +197,14 @@ function openStream(req, res, role) {
   });
   res.write(`event: hello\ndata: ${JSON.stringify({ messages: listMessages() })}\n\n`);
 
-  const client = { res, role };
+  const client = { res };
   streams.add(client);
 
   const ping = setInterval(() => {
     try {
       res.write(': ping\n\n');
     } catch {
-      /* handled by close */
+      /* handled on close */
     }
   }, 25_000);
 
@@ -214,19 +216,14 @@ function openStream(req, res, role) {
 
 /* ------------------------------- handlers -------------------------------- */
 
-function requireOwner(req) {
-  return readSession(parseCookies(req).sl_owner, 'owner');
-}
-
-function requireGuest(req) {
-  return readSession(parseCookies(req).sl_guest, 'guest');
-}
+const requireOwner = (req) => readSession(parseCookies(req).sl_owner, 'owner');
+const requireGuest = (req) => readSession(parseCookies(req).sl_guest, 'guest');
 
 async function handleApi(req, res, url) {
   const path = url.pathname;
   const method = req.method;
 
-  /* ---- owner ---- */
+  /* ------------------------------- owner -------------------------------- */
 
   if (path === '/api/owner/login' && method === 'POST') {
     const body = await readBody(req);
@@ -248,8 +245,8 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if (path.startsWith('/api/owner/')) {
-    if (!requireOwner(req)) return sendJson(res, 401, { error: 'Not signed in.' });
+  if (path.startsWith('/api/owner/') && !requireOwner(req)) {
+    return sendJson(res, 401, { error: 'Not signed in.' });
   }
 
   if (path === '/api/owner/state' && method === 'GET') {
@@ -259,11 +256,12 @@ async function handleApi(req, res, url) {
       presets: NOTICE_PRESETS,
       thread: t
         ? {
-            label: t.label,
-            recognitionHint: t.recognitionHint,
-            coverTheme: t.coverTheme,
+            clinicName: t.clinicName,
+            pageTitle: t.pageTitle,
+            displayName: t.displayName,
+            providerName: t.providerName,
+            pinRequired: Boolean(t.pinHash),
             purgeAfterMinutes: t.purgeAfterMinutes,
-            createdAt: t.createdAt,
             expiresAt: t.expiresAt,
             expired: threadExpired(t),
             link: `${publicUrl(req)}/c/${t.token}`,
@@ -275,45 +273,43 @@ async function handleApi(req, res, url) {
 
   if (path === '/api/owner/thread' && method === 'POST') {
     const body = await readBody(req);
-    const passphrase = String(body.passphrase || '').trim();
-    const recognitionHint = String(body.recognitionHint || '').trim();
 
-    if (passphrase.length < 4) {
-      return sendJson(res, 400, { error: 'Passphrase must be at least 4 characters.' });
-    }
-    if (!recognitionHint) {
-      return sendJson(res, 400, { error: 'Add a recognition word so she knows it is you.' });
-    }
-    const theme = COVER_THEMES.includes(body.coverTheme) ? body.coverTheme : 'weather';
-    const days = Math.min(Math.max(Number(body.expiresDays) || 7, 1), 90);
-    const purge = Math.min(Math.max(Number(body.purgeAfterMinutes) || 60, 0), 60 * 24 * 14);
+    const pageTitle = String(body.pageTitle || '').trim();
+    const displayName = String(body.displayName || '').trim();
+    if (!pageTitle) return sendJson(res, 400, { error: 'Give the page a title.' });
+    if (!displayName) return sendJson(res, 400, { error: 'Set the name she is greeted by.' });
 
-    const { salt, hash } = hashSecret(passphrase);
-    const thread = createThread({
-      label: String(body.label || '').slice(0, 60),
-      recognitionHint: recognitionHint.slice(0, 60),
-      coverTheme: theme,
+    const pin = String(body.pin || '').trim();
+    const pinFields = pin ? hashSecret(pin) : { salt: null, hash: null };
+
+    const days = Math.min(Math.max(Number(body.expiresDays) || 30, 1), 365);
+    const purge = Math.min(Math.max(Number(body.purgeAfterMinutes) || 0, 0), 60 * 24 * 30);
+
+    createThread({
+      clinicName: String(body.clinicName || 'Community Health Partners').slice(0, 80),
+      pageTitle: pageTitle.slice(0, 90),
+      displayName: displayName.slice(0, 60),
+      providerName: String(body.providerName || 'your provider').slice(0, 60),
       purgeAfterMinutes: purge,
       expiresAt: Date.now() + days * 86_400_000,
-      salt,
-      hash,
+      pinSalt: pinFields.salt,
+      pinHash: pinFields.hash,
     });
 
-    // A new link means every old session and old link is dead.
+    // A new link kills the old one and every session opened with it.
     destroyAllSessions('guest');
     broadcast('reset', {});
 
-    return sendJson(res, 200, { ok: true, link: `${publicUrl(req)}/c/${thread.token}` });
+    return sendJson(res, 200, { ok: true });
   }
 
   if (path === '/api/owner/notify' && method === 'POST') {
     const body = await readBody(req);
     const t = getThread();
-    if (!t) return sendJson(res, 400, { error: 'Create the line first.' });
+    if (!t) return sendJson(res, 400, { error: 'Create the portal first.' });
 
     const link = `${publicUrl(req)}/c/${t.token}`;
-    const template = String(body.body || '{{link}}');
-    const text = renderNotice(template, link);
+    const text = renderNotice(String(body.body || '{{link}}'), link);
     const to = String(body.to || '').trim();
 
     if (!body.send) return sendJson(res, 200, { ok: true, preview: text, link, sent: false });
@@ -333,9 +329,8 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const text = String(body.text || '').trim();
     if (!text) return sendJson(res, 400, { error: 'Empty message.' });
-    if (!getThread()) return sendJson(res, 400, { error: 'No active line.' });
-    const msg = addMessage('owner', text.slice(0, 4000));
-    broadcast('message', msg);
+    if (!getThread()) return sendJson(res, 400, { error: 'No active portal.' });
+    broadcast('message', addMessage('owner', text.slice(0, 4000)));
     return sendJson(res, 200, { ok: true });
   }
 
@@ -352,44 +347,33 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if (path === '/api/owner/stream' && method === 'GET') {
-    return openStream(req, res, 'owner');
-  }
+  if (path === '/api/owner/stream' && method === 'GET') return openStream(req, res);
 
-  /* ---- guest ---- */
+  /* ------------------------------- guest -------------------------------- */
 
-  if (path === '/api/guest/cover' && method === 'GET') {
-    const t = getThread();
-    const token = url.searchParams.get('token') || '';
-    // Never reveal whether a token is merely wrong or actually expired.
-    if (!t || threadExpired(t) || token !== t.token) {
-      return sendJson(res, 200, { valid: false, coverTheme: 'weather' });
-    }
-    return sendJson(res, 200, {
-      valid: true,
-      coverTheme: t.coverTheme,
-      recognitionHint: t.recognitionHint,
-    });
-  }
-
+  // Sign-in with a PIN, for when the extra lock is switched on.
   if (path === '/api/guest/unlock' && method === 'POST') {
     const body = await readBody(req);
     const t = getThread();
     const key = `guest:${clientKey(req)}`;
 
     if (tooManyAttempts(key, 8)) {
-      return sendJson(res, 429, { error: 'Too many tries. Wait 15 minutes.' });
+      return sendJson(res, 429, { error: 'Too many tries. Try again later.' });
     }
-    if (!t || threadExpired(t) || body.token !== t.token) {
-      return sendJson(res, 401, { error: 'No match.' });
+    if (!tokenIsValid(body.token)) return sendJson(res, 401, { error: 'Sign-in failed.' });
+    if (!t.pinHash) {
+      // No PIN configured; the link alone is the credential.
+      clearAttempts(key);
+      setCookie(req, res, 'sl_guest', createSession('guest', GUEST_TTL), GUEST_TTL / 1000);
+      return sendJson(res, 200, { ok: true });
     }
-    if (!verifySecret(String(body.passphrase || ''), t.salt, t.hash)) {
-      return sendJson(res, 401, { error: 'No match.' });
+    if (!verifySecret(String(body.pin || ''), t.pinSalt, t.pinHash)) {
+      return sendJson(res, 401, { error: 'Sign-in failed.' });
     }
 
     clearAttempts(key);
     setCookie(req, res, 'sl_guest', createSession('guest', GUEST_TTL), GUEST_TTL / 1000);
-    return sendJson(res, 200, { ok: true, label: t.label });
+    return sendJson(res, 200, { ok: true });
   }
 
   if (path === '/api/guest/lock' && method === 'POST') {
@@ -398,21 +382,39 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if (path.startsWith('/api/guest/')) {
-    if (!requireGuest(req)) return sendJson(res, 401, { error: 'locked' });
+  if (path.startsWith('/api/guest/') && !requireGuest(req)) {
+    return sendJson(res, 401, { error: 'locked' });
   }
 
-  if (path === '/api/guest/session' && method === 'GET') {
-    return sendJson(res, 200, { ok: true });
+  if (path === '/api/guest/portal' && method === 'GET') {
+    const t = getThread();
+    if (!t) return sendJson(res, 401, { error: 'locked' });
+    return sendJson(res, 200, {
+      clinicName: t.clinicName,
+      pageTitle: t.pageTitle,
+      displayName: t.displayName,
+      providerName: t.providerName,
+    });
   }
 
   if (path === '/api/guest/message' && method === 'POST') {
     const body = await readBody(req);
     const text = String(body.text || '').trim();
     if (!text) return sendJson(res, 400, { error: 'Empty message.' });
-    if (!getThread()) return sendJson(res, 400, { error: 'No active line.' });
-    const msg = addMessage('guest', text.slice(0, 4000));
-    broadcast('message', msg);
+    if (!getThread()) return sendJson(res, 400, { error: 'No active portal.' });
+    broadcast('message', addMessage('guest', text.slice(0, 4000)));
+    return sendJson(res, 200, { ok: true });
+  }
+
+  // The appointment form is part of the portal's cover, but a real request
+  // still reaches you — it is another way for her to get a word out.
+  if (path === '/api/guest/appointment' && method === 'POST') {
+    const body = await readBody(req);
+    if (!getThread()) return sendJson(res, 400, { error: 'No active portal.' });
+    const when = String(body.when || '').slice(0, 60).trim();
+    const reason = String(body.reason || '').slice(0, 500).trim();
+    const text = `[Appointment request] ${when || 'no date given'}${reason ? ` — ${reason}` : ''}`;
+    broadcast('message', addMessage('guest', text));
     return sendJson(res, 200, { ok: true });
   }
 
@@ -422,9 +424,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if (path === '/api/guest/stream' && method === 'GET') {
-    return openStream(req, res, 'guest');
-  }
+  if (path === '/api/guest/stream' && method === 'GET') return openStream(req, res);
 
   return sendJson(res, 404, { error: 'Not found' });
 }
@@ -448,19 +448,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // The invite link. The token stays in the URL only long enough for the
-    // page to read it; the page then rewrites its own address bar.
+    // The link itself is the sign-in. Clicking it lands her straight in the
+    // portal, unless the optional PIN is switched on. The page then rewrites
+    // its own address so the token is not left in the address bar or history.
     if (url.pathname.startsWith('/c/')) {
-      return serveStatic(res, 'cover.html');
+      const token = url.pathname.slice(3).split('/')[0];
+      const t = getThread();
+      if (tokenIsValid(token) && !t.pinHash) {
+        setCookie(req, res, 'sl_guest', createSession('guest', GUEST_TTL), GUEST_TTL / 1000);
+      }
+      return serveStatic(res, 'portal.html');
     }
 
     if (url.pathname === '/' || url.pathname === '/console') {
       return serveStatic(res, 'console.html');
     }
 
-    if (url.pathname === '/health') {
-      return sendJson(res, 200, { ok: true });
-    }
+    if (url.pathname === '/health') return sendJson(res, 200, { ok: true });
 
     return serveStatic(res, url.pathname.slice(1));
   } catch (err) {
