@@ -9,25 +9,26 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body class="portal-body">
-    <!-- Sign-in. Only shown if the extra PIN is switched on, or if the link
-         has expired. The link on its own normally signs her straight in. -->
+    <!-- Sign-in. The security question is the second half of the recognition:
+         only she knows the answer, because the answer is who you are. -->
     <section id="view-signin" class="portal-shell" hidden>
       <div class="portal-card">
         <p class="clinic-mark" id="signin-clinic">Patient Portal</p>
-        <h1>Sign in</h1>
-        <form id="pin-form" autocomplete="off">
-          <label for="pin">Access code</label>
+        <h1>Verify your identity</h1>
+        <p class="portal-sub">Answer your security question to continue.</p>
+        <form id="answer-form" autocomplete="off">
+          <label for="answer" id="question-label">What is your provider's first name?</label>
           <input
-            id="pin"
-            type="password"
+            id="answer"
+            type="text"
             autocomplete="off"
             autocorrect="off"
             autocapitalize="off"
             spellcheck="false"
           />
-          <button type="submit">Sign in</button>
+          <button type="submit">Continue</button>
         </form>
-        <p id="signin-error" class="error" hidden>We couldn't sign you in.</p>
+        <p id="signin-error" class="error" hidden>That answer didn't match. Try again.</p>
       </div>
     </section>
 

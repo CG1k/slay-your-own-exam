@@ -351,6 +351,17 @@ kbd {
   font-weight: 500;
 }
 
+.preview {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  background: #f5f7f9;
+  border: 1px solid #e4e8ec;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .status {
   margin-top: 16px;
   border-top: 1px solid #e4e8ec;

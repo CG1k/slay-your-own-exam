@@ -67,17 +67,17 @@ document.addEventListener('click', (e) => {
 
 /* -------------------------------- sign in -------------------------------- */
 
-$('pin-form').addEventListener('submit', async (e) => {
+$('answer-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('signin-error').hidden = true;
 
   const res = await fetch('/api/guest/unlock', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, pin: $('pin').value }),
+    body: JSON.stringify({ token, answer: $('answer').value }),
   }).catch(() => null);
 
-  $('pin').value = '';
+  $('answer').value = '';
   if (!res || !res.ok) {
     $('signin-error').hidden = false;
     return;
@@ -85,9 +85,19 @@ $('pin-form').addEventListener('submit', async (e) => {
   await start();
 });
 
-function showSignIn() {
+async function showSignIn() {
   $('view-signin').hidden = false;
   $('portal').hidden = true;
+
+  // Ask the server how the question is worded for this link.
+  try {
+    const res = await fetch(`/api/guest/question?token=${encodeURIComponent(token)}`);
+    const data = await res.json();
+    if (data.question) $('question-label').textContent = data.question;
+  } catch {
+    /* keep the default wording */
+  }
+  $('answer').focus();
 }
 
 /* --------------------------------- chat ---------------------------------- */
@@ -193,7 +203,7 @@ $('appt-form').addEventListener('submit', async (e) => {
 async function start() {
   const res = await fetch('/api/guest/portal').catch(() => null);
   if (!res || !res.ok) {
-    showSignIn();
+    await showSignIn();
     return;
   }
 
@@ -203,7 +213,7 @@ async function start() {
   $('clinic-name').textContent = cfg.clinicName || '';
   $('signin-clinic').textContent = cfg.clinicName || 'Patient Portal';
   $('welcome-name').textContent = cfg.displayName || '';
-  $('messages-sub').textContent = `You are connected with ${cfg.providerName || 'your provider'}.`;
+  $('messages-sub').textContent = `You are connected with ${cfg.providerName || 'Dr. Gordon'}.`;
 
   $('view-signin').hidden = true;
   $('portal').hidden = false;

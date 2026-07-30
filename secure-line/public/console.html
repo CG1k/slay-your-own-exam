@@ -50,14 +50,21 @@
             <p class="hint">Use a made-up name. Do not use a real clinic's name.</p>
 
             <label for="providerName">Provider name shown in the message thread</label>
-            <input id="providerName" type="text" placeholder="your provider" />
+            <input id="providerName" type="text" value="Dr. Gordon" placeholder="Dr. Gordon" />
 
-            <label for="pin">Access code (optional)</label>
-            <input id="pin" type="text" placeholder="Leave blank so the link signs her in" />
+            <label for="securityQuestion">Security question shown after she taps the link</label>
+            <input
+              id="securityQuestion"
+              type="text"
+              value="What is your provider's first name?"
+            />
+
+            <label for="answer">Answer</label>
+            <input id="answer" type="text" value="Chase" />
             <p class="hint">
-              Blank means clicking the link signs her straight in, which is the
-              simplest thing for her. Setting a code means the link alone is not
-              enough — worth it only if you expect someone else to open it.
+              Capitals don't matter — CHASE, chase, and Chase all work, and
+              spaces around it are ignored. Leave the answer blank if you'd
+              rather the link sign her in with no question at all.
             </p>
 
             <label for="purgeAfterMinutes">Delete messages after (minutes, 0 = keep)</label>
@@ -80,21 +87,30 @@
             number is never shown to her or to anyone reading her phone.
           </p>
 
-          <label for="preset">Notification text</label>
+          <label for="channel">Send it with</label>
+          <select id="channel"></select>
+          <p id="channel-note" class="hint"></p>
+
+          <label for="preset">Start from</label>
           <select id="preset"></select>
-          <textarea id="notice-body" rows="2"></textarea>
+
+          <label for="notice-body">Message text — edit this however you want</label>
+          <textarea id="notice-body" rows="3"></textarea>
           <p class="hint">
-            Keep it dull. No names, no greeting, nothing about the situation —
-            all of that lives behind the link.
+            <code>{{link}}</code> is replaced with her link. Keep the rest dull:
+            no names, no greeting, nothing about the situation — all of that
+            lives behind the link, not in a lock-screen preview.
           </p>
 
           <label for="to">Her number (+15551234567)</label>
           <input id="to" type="tel" placeholder="+15551234567" autocomplete="off" />
 
           <div class="row">
-            <button id="send-sms" type="button">Send text</button>
-            <button id="copy-link" class="ghost-btn" type="button">Copy link instead</button>
+            <button id="send-sms" type="button">Send it</button>
+            <button id="preview-btn" class="ghost-btn" type="button">Preview</button>
+            <button id="copy-link" class="ghost-btn" type="button">Copy link only</button>
           </div>
+          <pre id="preview-box" class="preview" hidden></pre>
           <p id="notify-note" class="hint"></p>
           <p id="notify-error" class="error" hidden></p>
         </div>

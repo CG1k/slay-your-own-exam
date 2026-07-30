@@ -24,7 +24,13 @@ import {
   tooManyAttempts,
   clearAttempts,
 } from './lib/auth.js';
-import { sendSms, smsConfigured, NOTICE_PRESETS, renderNotice } from './lib/sms.js';
+import {
+  sendVia,
+  listChannels,
+  anyChannelReady,
+  NOTICE_PRESETS,
+  renderNotice,
+} from './lib/sms.js';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PUBLIC_DIR = resolve(ROOT, 'public');
@@ -174,6 +180,12 @@ function tokenIsValid(token) {
   return Boolean(t && !threadExpired(t) && token && token === t.token);
 }
 
+/** Answers are matched case-insensitively and ignoring surrounding spaces, so
+    CHASE, chase, and " Chase " all get her in. */
+const normalizeAnswer = (value) => String(value ?? '').trim().toLowerCase();
+
+const DEFAULT_QUESTION = "What is your provider's first name?";
+
 /* ----------------------------- live updates ------------------------------ */
 
 const streams = new Set();
@@ -252,7 +264,8 @@ async function handleApi(req, res, url) {
   if (path === '/api/owner/state' && method === 'GET') {
     const t = getThread();
     return sendJson(res, 200, {
-      smsConfigured: smsConfigured(),
+      smsConfigured: anyChannelReady(),
+      channels: listChannels(),
       presets: NOTICE_PRESETS,
       thread: t
         ? {
@@ -260,7 +273,8 @@ async function handleApi(req, res, url) {
             pageTitle: t.pageTitle,
             displayName: t.displayName,
             providerName: t.providerName,
-            pinRequired: Boolean(t.pinHash),
+            securityQuestion: t.securityQuestion,
+            answerRequired: Boolean(t.answerHash),
             purgeAfterMinutes: t.purgeAfterMinutes,
             expiresAt: t.expiresAt,
             expired: threadExpired(t),
@@ -279,8 +293,8 @@ async function handleApi(req, res, url) {
     if (!pageTitle) return sendJson(res, 400, { error: 'Give the page a title.' });
     if (!displayName) return sendJson(res, 400, { error: 'Set the name she is greeted by.' });
 
-    const pin = String(body.pin || '').trim();
-    const pinFields = pin ? hashSecret(pin) : { salt: null, hash: null };
+    const answer = normalizeAnswer(body.answer);
+    const answerFields = answer ? hashSecret(answer) : { salt: null, hash: null };
 
     const days = Math.min(Math.max(Number(body.expiresDays) || 30, 1), 365);
     const purge = Math.min(Math.max(Number(body.purgeAfterMinutes) || 0, 0), 60 * 24 * 30);
@@ -289,11 +303,12 @@ async function handleApi(req, res, url) {
       clinicName: String(body.clinicName || 'Community Health Partners').slice(0, 80),
       pageTitle: pageTitle.slice(0, 90),
       displayName: displayName.slice(0, 60),
-      providerName: String(body.providerName || 'your provider').slice(0, 60),
+      providerName: String(body.providerName || 'Dr. Gordon').slice(0, 60),
+      securityQuestion: String(body.securityQuestion || DEFAULT_QUESTION).slice(0, 120),
       purgeAfterMinutes: purge,
       expiresAt: Date.now() + days * 86_400_000,
-      pinSalt: pinFields.salt,
-      pinHash: pinFields.hash,
+      answerSalt: answerFields.salt,
+      answerHash: answerFields.hash,
     });
 
     // A new link kills the old one and every session opened with it.
@@ -311,16 +326,17 @@ async function handleApi(req, res, url) {
     const link = `${publicUrl(req)}/c/${t.token}`;
     const text = renderNotice(String(body.body || '{{link}}'), link);
     const to = String(body.to || '').trim();
+    const channel = String(body.channel || 'manual');
 
-    if (!body.send) return sendJson(res, 200, { ok: true, preview: text, link, sent: false });
+    // Preview, or an explicit choice to send it yourself: nothing goes out.
+    if (!body.send || channel === 'manual') {
+      return sendJson(res, 200, { ok: true, preview: text, link, sent: false, manual: true });
+    }
     if (!/^\+[1-9]\d{6,15}$/.test(to)) {
       return sendJson(res, 400, { error: 'Enter the number in +15551234567 format.' });
     }
-    if (!smsConfigured()) {
-      return sendJson(res, 200, { ok: true, preview: text, link, sent: false, manual: true });
-    }
 
-    const result = await sendSms(to, text);
+    const result = await sendVia(channel, to, text);
     if (!result.ok) return sendJson(res, 502, { error: result.detail, preview: text, link });
     return sendJson(res, 200, { ok: true, preview: text, link, sent: true });
   }
@@ -351,25 +367,30 @@ async function handleApi(req, res, url) {
 
   /* ------------------------------- guest -------------------------------- */
 
-  // Sign-in with a PIN, for when the extra lock is switched on.
+  // The question shown on the sign-in card. A wrong token gets the default
+  // wording rather than an error, so a snooper learns nothing from it.
+  if (path === '/api/guest/question' && method === 'GET') {
+    const t = getThread();
+    const token = url.searchParams.get('token') || '';
+    return sendJson(res, 200, {
+      question: tokenIsValid(token) ? t.securityQuestion || DEFAULT_QUESTION : DEFAULT_QUESTION,
+    });
+  }
+
   if (path === '/api/guest/unlock' && method === 'POST') {
     const body = await readBody(req);
     const t = getThread();
     const key = `guest:${clientKey(req)}`;
 
-    if (tooManyAttempts(key, 8)) {
+    if (tooManyAttempts(key, 12)) {
       return sendJson(res, 429, { error: 'Too many tries. Try again later.' });
     }
     if (!tokenIsValid(body.token)) return sendJson(res, 401, { error: 'Sign-in failed.' });
-    if (!t.pinHash) {
-      // No PIN configured; the link alone is the credential.
-      clearAttempts(key);
-      setCookie(req, res, 'sl_guest', createSession('guest', GUEST_TTL), GUEST_TTL / 1000);
-      return sendJson(res, 200, { ok: true });
-    }
-    if (!verifySecret(String(body.pin || ''), t.pinSalt, t.pinHash)) {
-      return sendJson(res, 401, { error: 'Sign-in failed.' });
-    }
+
+    // No answer configured means the link alone is the credential.
+    const passes =
+      !t.answerHash || verifySecret(normalizeAnswer(body.answer), t.answerSalt, t.answerHash);
+    if (!passes) return sendJson(res, 401, { error: 'Sign-in failed.' });
 
     clearAttempts(key);
     setCookie(req, res, 'sl_guest', createSession('guest', GUEST_TTL), GUEST_TTL / 1000);
@@ -448,13 +469,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // The link itself is the sign-in. Clicking it lands her straight in the
-    // portal, unless the optional PIN is switched on. The page then rewrites
-    // its own address so the token is not left in the address bar or history.
+    // Clicking the link opens the sign-in card, which asks the security
+    // question. If no answer is configured the link alone signs her in. Either
+    // way the page then rewrites its own address so the token is not left in
+    // the address bar or in browser history.
     if (url.pathname.startsWith('/c/')) {
       const token = url.pathname.slice(3).split('/')[0];
       const t = getThread();
-      if (tokenIsValid(token) && !t.pinHash) {
+      if (tokenIsValid(token) && !t.answerHash) {
         setCookie(req, res, 'sl_guest', createSession('guest', GUEST_TTL), GUEST_TTL / 1000);
       }
       return serveStatic(res, 'portal.html');

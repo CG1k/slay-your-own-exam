@@ -53,11 +53,37 @@ function fillPresets(presets) {
     opt.dataset.body = p.body;
     select.append(opt);
   }
+  // Picking a preset only seeds the box; the text stays yours to rewrite.
   select.addEventListener('change', () => {
     const opt = select.selectedOptions[0];
     if (opt) $('notice-body').value = opt.dataset.body;
   });
   if (presets.length) $('notice-body').value = presets[0].body;
+}
+
+function fillChannels(channels) {
+  const select = $('channel');
+  if (select.options.length) return;
+
+  for (const c of channels) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.ready ? c.label : `${c.label} — not configured`;
+    opt.disabled = !c.ready;
+    opt.dataset.note = c.note || '';
+    select.append(opt);
+  }
+
+  const showNote = () => {
+    const opt = select.selectedOptions[0];
+    $('channel-note').textContent = opt ? opt.dataset.note : '';
+  };
+  select.addEventListener('change', showNote);
+
+  // Land on something that actually works.
+  const firstReady = channels.find((c) => c.ready && c.id !== 'manual') || { id: 'manual' };
+  select.value = firstReady.id;
+  showNote();
 }
 
 async function refreshState() {
@@ -68,10 +94,11 @@ async function refreshState() {
   }
   const data = await res.json();
   fillPresets(data.presets || []);
+  fillChannels(data.channels || []);
 
   $('notify-note').textContent = data.smsConfigured
-    ? 'Texting is configured.'
-    : 'No SMS provider configured — use "Copy link instead" and send it however you like.';
+    ? ''
+    : 'No sending service is configured yet, so "Send it" will just hand you the text to send yourself.';
 
   const status = $('status');
   if (!data.thread) {
@@ -89,7 +116,12 @@ async function refreshState() {
     ['Page title', data.thread.pageTitle],
     ['Greeted as', data.thread.displayName],
     ['Clinic name', data.thread.clinicName],
-    ['Sign-in', data.thread.pinRequired ? 'access code required' : 'link signs her in'],
+    [
+      'Sign-in',
+      data.thread.answerRequired
+        ? `asks: ${data.thread.securityQuestion}`
+        : 'link signs her in, no question',
+    ],
     [
       'Messages deleted after',
       data.thread.purgeAfterMinutes ? `${data.thread.purgeAfterMinutes} min` : 'never',
@@ -116,6 +148,7 @@ async function refreshState() {
   $('displayName').value = data.thread.displayName || '';
   $('clinicName').value = data.thread.clinicName || '';
   $('providerName').value = data.thread.providerName || '';
+  $('securityQuestion').value = data.thread.securityQuestion || '';
   $('purgeAfterMinutes').value = data.thread.purgeAfterMinutes ?? 0;
 }
 
@@ -142,7 +175,8 @@ $('setup-form').addEventListener('submit', async (e) => {
       displayName: $('displayName').value,
       clinicName: $('clinicName').value,
       providerName: $('providerName').value,
-      pin: $('pin').value,
+      securityQuestion: $('securityQuestion').value,
+      answer: $('answer').value,
       purgeAfterMinutes: $('purgeAfterMinutes').value,
       expiresDays: $('expiresDays').value,
     }),
@@ -154,7 +188,6 @@ $('setup-form').addEventListener('submit', async (e) => {
     err.hidden = false;
     return;
   }
-  $('pin').value = '';
   await refreshState();
 });
 
@@ -173,29 +206,41 @@ $('copy-link').addEventListener('click', async () => {
   }
 });
 
-$('send-sms').addEventListener('click', async () => {
+async function notify(send) {
   const err = $('notify-error');
   err.hidden = true;
 
   const res = await fetch('/api/owner/notify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: $('to').value, body: $('notice-body').value, send: true }),
+    body: JSON.stringify({
+      to: $('to').value,
+      body: $('notice-body').value,
+      channel: $('channel').value,
+      send,
+    }),
   });
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     err.textContent = data.error || 'Could not send.';
     err.hidden = false;
+    if (data.preview) {
+      $('preview-box').textContent = data.preview;
+      $('preview-box').hidden = false;
+    }
     return;
   }
-  if (data.sent) {
-    $('notify-note').textContent = `Sent: ${data.preview}`;
-  } else if (data.manual) {
-    $('notify-note').textContent =
-      'No SMS provider configured. Send this yourself: ' + data.preview;
-  }
-});
+
+  $('preview-box').textContent = data.preview;
+  $('preview-box').hidden = false;
+  $('notify-note').textContent = data.sent
+    ? 'Sent. This is exactly what landed on her phone:'
+    : 'Not sent — copy this and send it yourself:';
+}
+
+$('send-sms').addEventListener('click', () => notify(true));
+$('preview-btn').addEventListener('click', () => notify(false));
 
 /* --------------------------------- chat ---------------------------------- */
 
