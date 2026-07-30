@@ -1,0 +1,392 @@
+/* Two looks in one sheet: a deliberately ordinary cover page, and a plain
+   console for the owner. The cover should read as forgettable. */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Must outrank every display rule below. Without this, a class that sets
+   display (.chat is flex) beats the UA rule for [hidden] and the private
+   surface renders on top of the cover. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  color: #1c1f23;
+  background: #f4f6f8;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #c3cad2;
+  background: #2f6fd0;
+  color: #fff;
+  padding: 10px 16px;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+.ghost-btn {
+  background: #fff;
+  color: #33393f;
+}
+
+.danger-btn {
+  background: #b3271e;
+  border-color: #b3271e;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #c3cad2;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+}
+
+textarea {
+  resize: none;
+}
+
+label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.error {
+  color: #b3271e;
+  font-size: 0.9rem;
+}
+
+.hint {
+  color: #5d666f;
+  font-size: 0.85rem;
+  margin: 6px 0 0;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* ------------------------------ cover page ------------------------------- */
+
+.cover-body {
+  background: #fff;
+}
+
+.cover {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 18px 40px;
+}
+
+.cover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e4e8ec;
+  padding-bottom: 12px;
+}
+
+.cover-head h1 {
+  font-size: 1.25rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.exit-btn {
+  background: #fff;
+  color: #5d666f;
+  border-color: #d8dee4;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.wx-now {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 26px 0 18px;
+}
+
+.wx-temp {
+  font-size: 3.4rem;
+  font-weight: 300;
+  letter-spacing: -2px;
+}
+
+.wx-cond {
+  font-weight: 600;
+}
+
+.wx-sub {
+  color: #5d666f;
+  font-size: 0.9rem;
+}
+
+.wx-week {
+  border-top: 1px solid #e4e8ec;
+}
+
+.wx-day {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 2px;
+  border-bottom: 1px solid #f0f3f5;
+  color: #33393f;
+  font-size: 0.95rem;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 20px 0;
+}
+
+.mini-card {
+  border: 1px solid #e4e8ec;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.mini-card h3 {
+  margin: 0 0 6px;
+  font-size: 0.98rem;
+}
+
+.mini-card p {
+  margin: 0;
+  color: #5d666f;
+  font-size: 0.85rem;
+}
+
+.list {
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+}
+
+.list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 2px;
+  border-bottom: 1px solid #f0f3f5;
+}
+
+.unlock {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 22px;
+}
+
+.unlock label {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.saved-row {
+  color: #5d666f;
+  font-size: 0.85rem;
+  margin-top: 12px;
+}
+
+#recognition {
+  color: #33393f;
+  font-weight: 600;
+}
+
+.cover-error {
+  color: #5d666f;
+  font-size: 0.9rem;
+}
+
+/* -------------------------------- chat ----------------------------------- */
+
+.chat {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 18px 28px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.chat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid #e4e8ec;
+  padding-bottom: 12px;
+}
+
+.chat-sub {
+  display: block;
+  color: #5d666f;
+  font-size: 0.82rem;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-actions button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 220px;
+  max-height: 55vh;
+}
+
+.bubble {
+  max-width: 78%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: #eef1f4;
+}
+
+.bubble.mine {
+  align-self: flex-end;
+  background: #2f6fd0;
+  color: #fff;
+}
+
+.bubble.theirs {
+  align-self: flex-start;
+}
+
+.bubble-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bubble-time {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.65;
+  margin-top: 3px;
+}
+
+.send {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+  border-top: 1px solid #e4e8ec;
+  padding-top: 12px;
+}
+
+.fineprint {
+  color: #5d666f;
+  font-size: 0.78rem;
+  margin: 10px 0 0;
+}
+
+kbd {
+  border: 1px solid #c3cad2;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 0.75rem;
+}
+
+/* ------------------------------- console --------------------------------- */
+
+.console {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 18px 60px;
+}
+
+.console-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.console-head h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e4e8ec;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+.panel h1,
+.panel h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.panel form button[type='submit'] {
+  margin-top: 16px;
+}
+
+.status {
+  margin-top: 16px;
+  border-top: 1px solid #e4e8ec;
+  padding-top: 12px;
+}
+
+.status-row {
+  display: flex;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 0.88rem;
+}
+
+.status-key {
+  color: #5d666f;
+  min-width: 165px;
+}
+
+.status-val {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+@media (max-width: 480px) {
+  .status-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .status-key {
+    min-width: 0;
+  }
+}

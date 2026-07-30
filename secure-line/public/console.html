@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="console-body">
+    <!-- Your side. Password-gated; never linked from anywhere. -->
+    <main class="console">
+      <section id="login-view" class="panel">
+        <h1>Sign in</h1>
+        <form id="login-form" autocomplete="off">
+          <label for="passcode">Console passcode</label>
+          <input id="passcode" type="password" autocomplete="current-password" />
+          <button type="submit">Sign in</button>
+        </form>
+        <p id="login-error" class="error" hidden></p>
+      </section>
+
+      <section id="app-view" hidden>
+        <header class="console-head">
+          <h1>Secure line</h1>
+          <button id="logout" class="ghost-btn" type="button">Sign out</button>
+        </header>
+
+        <div class="panel">
+          <h2>1. Set up the line</h2>
+          <p class="hint">
+            Creating a new line cancels the old link and signs her out everywhere.
+          </p>
+          <form id="setup-form" autocomplete="off">
+            <label for="recognitionHint">Recognition word — how she knows it's you</label>
+            <input
+              id="recognitionHint"
+              type="text"
+              placeholder="Something only you two would connect to you"
+            />
+            <p class="hint">
+              Shown in plain sight on the cover page. Pick something meaningless to
+              anyone else — an inside joke, a street you both know, a nickname.
+            </p>
+
+            <label for="passphrase">Passphrase — what she types to get in</label>
+            <input id="passphrase" type="text" placeholder="Agree on this in person if you can" />
+            <p class="hint">
+              She types this into the search box on the cover page. Anything else
+              just shows "no results".
+            </p>
+
+            <label for="coverTheme">Cover page</label>
+            <select id="coverTheme">
+              <option value="weather">Weather forecast</option>
+              <option value="recipes">Recipes</option>
+              <option value="shopping">Shopping list</option>
+            </select>
+
+            <label for="purgeAfterMinutes">Delete messages after (minutes, 0 = keep)</label>
+            <input id="purgeAfterMinutes" type="number" min="0" max="20160" value="60" />
+
+            <label for="expiresDays">Link stops working after (days)</label>
+            <input id="expiresDays" type="number" min="1" max="90" value="7" />
+
+            <label for="label">Label shown to her once she's in (optional)</label>
+            <input id="label" type="text" placeholder="e.g. It's me" />
+
+            <button type="submit">Create the line</button>
+          </form>
+          <p id="setup-error" class="error" hidden></p>
+          <div id="status" class="status" hidden></div>
+        </div>
+
+        <div class="panel">
+          <h2>2. Send her the link</h2>
+          <p class="hint">
+            Keep the text dull and about nothing. No name, no greeting, nothing
+            about the situation — all of that lives behind the link.
+          </p>
+
+          <label for="preset">Notification text</label>
+          <select id="preset"></select>
+          <textarea id="notice-body" rows="2"></textarea>
+
+          <label for="to">Her number (+15551234567)</label>
+          <input id="to" type="tel" placeholder="+15551234567" autocomplete="off" />
+
+          <div class="row">
+            <button id="send-sms" type="button">Send text</button>
+            <button id="copy-link" class="ghost-btn" type="button">Copy link instead</button>
+          </div>
+          <p id="notify-note" class="hint"></p>
+          <p id="notify-error" class="error" hidden></p>
+        </div>
+
+        <div class="panel">
+          <h2>3. Talk</h2>
+          <div id="log" class="log" aria-live="polite"></div>
+          <form id="send-form" class="send" autocomplete="off">
+            <textarea id="send-input" rows="1" placeholder="Message"></textarea>
+            <button type="submit">Send</button>
+          </form>
+          <div class="row">
+            <button id="wipe" class="ghost-btn" type="button">Clear messages</button>
+            <button id="destroy" class="danger-btn" type="button">Kill the line</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/console.js" type="module"></script>
+  </body>
+</html>

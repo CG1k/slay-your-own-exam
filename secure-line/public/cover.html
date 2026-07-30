@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Local Forecast</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="cover-body">
+    <!-- Cover surface. Plausible, dull, and not pretending to be any real
+         company or provider. The search box is the way in. -->
+    <div id="cover" class="cover">
+      <header class="cover-head">
+        <h1 id="cover-title">Local Forecast</h1>
+        <button id="exit-cover" class="exit-btn" type="button" title="Close">Close</button>
+      </header>
+
+      <section id="theme-weather" class="theme">
+        <div class="wx-now">
+          <div class="wx-temp">64°</div>
+          <div class="wx-meta">
+            <div class="wx-cond">Partly cloudy</div>
+            <div class="wx-sub">Feels like 61° · Humidity 58%</div>
+          </div>
+        </div>
+        <div class="wx-week">
+          <div class="wx-day"><span>Mon</span><span>68° / 52°</span></div>
+          <div class="wx-day"><span>Tue</span><span>71° / 55°</span></div>
+          <div class="wx-day"><span>Wed</span><span>66° / 51°</span></div>
+          <div class="wx-day"><span>Thu</span><span>63° / 49°</span></div>
+          <div class="wx-day"><span>Fri</span><span>70° / 54°</span></div>
+        </div>
+      </section>
+
+      <section id="theme-recipes" class="theme" hidden>
+        <div class="card-grid">
+          <article class="mini-card"><h3>Weeknight lemon chicken</h3><p>35 min · 4 servings</p></article>
+          <article class="mini-card"><h3>One-pot tomato orzo</h3><p>25 min · 3 servings</p></article>
+          <article class="mini-card"><h3>Sheet-pan vegetables</h3><p>40 min · 4 servings</p></article>
+          <article class="mini-card"><h3>Overnight oats, three ways</h3><p>5 min · 2 servings</p></article>
+        </div>
+      </section>
+
+      <section id="theme-shopping" class="theme" hidden>
+        <ul class="list">
+          <li><span>Paper towels</span><span>$8.49</span></li>
+          <li><span>Laundry detergent</span><span>$12.99</span></li>
+          <li><span>Dish soap</span><span>$3.79</span></li>
+          <li><span>Trash bags</span><span>$10.25</span></li>
+          <li><span>Sponges, 6 ct.</span><span>$4.15</span></li>
+        </ul>
+      </section>
+
+      <form id="unlock-form" class="unlock" autocomplete="off">
+        <label id="unlock-label" for="unlock-input">Search location</label>
+        <input
+          id="unlock-input"
+          type="text"
+          name="q"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          inputmode="text"
+          placeholder="Enter a city or ZIP"
+        />
+        <button type="submit" id="unlock-btn">Go</button>
+      </form>
+
+      <p class="saved-row">
+        Saved: <span id="recognition">—</span>
+      </p>
+
+      <p id="cover-error" class="cover-error" hidden>No results found.</p>
+    </div>
+
+    <!-- Real surface, only ever shown after the passphrase matches. -->
+    <div id="chat" class="chat" hidden>
+      <header class="chat-head">
+        <div>
+          <strong id="chat-title">Connected</strong>
+          <span id="chat-sub" class="chat-sub">Messages disappear on their own.</span>
+        </div>
+        <div class="chat-actions">
+          <button id="wipe" class="ghost-btn" type="button">Clear</button>
+          <button id="lock" class="ghost-btn" type="button">Lock</button>
+          <button id="exit-chat" class="exit-btn" type="button">Leave</button>
+        </div>
+      </header>
+
+      <div id="log" class="log" aria-live="polite"></div>
+
+      <form id="send-form" class="send" autocomplete="off">
+        <textarea
+          id="send-input"
+          rows="1"
+          placeholder="Message"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        ></textarea>
+        <button type="submit">Send</button>
+      </form>
+
+      <p class="fineprint">
+        Press <kbd>Esc</kbd> three times to leave instantly. Locks itself after a
+        few minutes of no typing.
+      </p>
+    </div>
+
+    <script src="/cover.js" type="module"></script>
+  </body>
+</html>
