@@ -1,0 +1,13 @@
+{
+  "name": "secure-line",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A discreet two-person messaging line for someone whose phone is monitored.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
