@@ -4,7 +4,7 @@ A patient-portal-shaped website for reaching one person whose phone is watched
 by someone else.
 
 She gets a dull text with a link. Tapping it asks her one security question —
-by default *"What is your provider's first name?"*, answer `Chase`. Anyone else
+by default *"What is Dr. Gordon's first name?"*, answer `Chase`. Anyone else
 who opens the link sees the same question and can't get past it.
 
 Past it, she lands on what looks like an ordinary patient portal — a clinic
@@ -32,10 +32,13 @@ Two ways, and the second is the stronger one.
 The page title is yours, and you put your word in it — "Patient Portal —
 Bluebird". It's the browser tab and the heading on every screen.
 
-The security question does double duty. *"What is your provider's first name?"*
-has an answer only she would think to give, because the answer is you. Someone
-going through her phone reads it as an ordinary identity check and has no way
-to guess it.
+The security question does double duty. *"What is Dr. Gordon's first name?"* has
+an answer only she would think to give, because the answer is you. Someone going
+through her phone reads it as an ordinary identity check and has no way to guess
+it.
+
+The wording follows whatever you set the provider name to, so renaming the
+doctor renames the question. Type your own wording and it stops following.
 
 Answers ignore capitals and surrounding spaces, so `Chase`, `chase`, `CHASE`,
 and `  Chase  ` all work. Both the question and the answer are yours to change

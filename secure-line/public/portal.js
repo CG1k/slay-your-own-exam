@@ -94,6 +94,7 @@ async function showSignIn() {
     const res = await fetch(`/api/guest/question?token=${encodeURIComponent(token)}`);
     const data = await res.json();
     if (data.question) $('question-label').textContent = data.question;
+
   } catch {
     /* keep the default wording */
   }

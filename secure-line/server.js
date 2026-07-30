@@ -184,7 +184,13 @@ function tokenIsValid(token) {
     CHASE, chase, and " Chase " all get her in. */
 const normalizeAnswer = (value) => String(value ?? '').trim().toLowerCase();
 
-const DEFAULT_QUESTION = "What is your provider's first name?";
+const DEFAULT_PROVIDER = 'Dr. Gordon';
+
+/** Wording follows the provider's name, so the question reads naturally
+    whatever the operator calls them. */
+const questionFor = (provider) => `What is ${provider || DEFAULT_PROVIDER}'s first name?`;
+
+const DEFAULT_QUESTION = questionFor(DEFAULT_PROVIDER);
 
 /* ----------------------------- live updates ------------------------------ */
 
@@ -295,6 +301,7 @@ async function handleApi(req, res, url) {
 
     const answer = normalizeAnswer(body.answer);
     const answerFields = answer ? hashSecret(answer) : { salt: null, hash: null };
+    const provider = String(body.providerName || DEFAULT_PROVIDER).slice(0, 60);
 
     const days = Math.min(Math.max(Number(body.expiresDays) || 30, 1), 365);
     const purge = Math.min(Math.max(Number(body.purgeAfterMinutes) || 0, 0), 60 * 24 * 30);
@@ -303,8 +310,8 @@ async function handleApi(req, res, url) {
       clinicName: String(body.clinicName || 'Community Health Partners').slice(0, 80),
       pageTitle: pageTitle.slice(0, 90),
       displayName: displayName.slice(0, 60),
-      providerName: String(body.providerName || 'Dr. Gordon').slice(0, 60),
-      securityQuestion: String(body.securityQuestion || DEFAULT_QUESTION).slice(0, 120),
+      providerName: provider,
+      securityQuestion: String(body.securityQuestion || questionFor(provider)).slice(0, 120),
       purgeAfterMinutes: purge,
       expiresAt: Date.now() + days * 86_400_000,
       answerSalt: answerFields.salt,

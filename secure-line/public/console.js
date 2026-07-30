@@ -43,6 +43,19 @@ async function enterApp() {
 
 /* --------------------------------- state --------------------------------- */
 
+/* Keep the security question in step with the provider name, but stop the
+   moment the operator writes their own wording. */
+const questionFor = (provider) => `What is ${provider || 'Dr. Gordon'}'s first name?`;
+let questionEdited = false;
+
+$('securityQuestion').addEventListener('input', () => {
+  questionEdited = true;
+});
+
+$('providerName').addEventListener('input', () => {
+  if (!questionEdited) $('securityQuestion').value = questionFor($('providerName').value.trim());
+});
+
 function fillPresets(presets) {
   const select = $('preset');
   if (select.options.length) return;
@@ -149,6 +162,10 @@ async function refreshState() {
   $('clinicName').value = data.thread.clinicName || '';
   $('providerName').value = data.thread.providerName || '';
   $('securityQuestion').value = data.thread.securityQuestion || '';
+  // A stored question that isn't the generated one was written by hand; leave it be.
+  questionEdited =
+    Boolean(data.thread.securityQuestion) &&
+    data.thread.securityQuestion !== questionFor(data.thread.providerName);
   $('purgeAfterMinutes').value = data.thread.purgeAfterMinutes ?? 0;
 }
 
