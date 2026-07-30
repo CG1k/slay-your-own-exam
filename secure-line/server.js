@@ -343,7 +343,11 @@ async function handleApi(req, res, url) {
     if (!t) return sendJson(res, 400, { error: 'Create the portal first.' });
 
     const link = `${publicUrl(req)}/c/${t.token}`;
-    const text = renderNotice(String(body.body || '{{link}}'), link);
+    const text = renderNotice(String(body.body || '{{link}}'), {
+      link,
+      name: t.displayName,
+      clinic: t.clinicName,
+    });
     const to = String(body.to || '').trim();
     const channel = String(body.channel || 'manual');
 

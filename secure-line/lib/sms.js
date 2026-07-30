@@ -16,6 +16,15 @@
 
 export const NOTICE_PRESETS = [
   {
+    id: 'diagnostic',
+    label: 'Diagnostic report — portal sign-in',
+    body:
+      'Good afternoon {{name}}, your recent diagnostic report includes findings ' +
+      'that require attention. Please sign in to your patient portal to review ' +
+      'your results and schedule an appointment or contact your provider within ' +
+      'the next 72 hours. {{link}}',
+  },
+  {
     id: 'code',
     label: 'Verification style',
     body: 'Your verification link is ready. Tap to continue: {{link}} Do not share this link.',
@@ -43,8 +52,16 @@ export const NOTICE_PRESETS = [
   { id: 'bare', label: 'Link only', body: '{{link}}' },
 ];
 
-export function renderNotice(body, link) {
-  return String(body).replaceAll('{{link}}', link);
+/**
+ * Fills the placeholders a message body may use. Anything that isn't a known
+ * placeholder is left as-is, so a typo shows up in the preview rather than
+ * silently disappearing from the text that goes out.
+ */
+export function renderNotice(body, { link = '', name = '', clinic = '' } = {}) {
+  return String(body)
+    .replaceAll('{{link}}', link)
+    .replaceAll('{{name}}', name)
+    .replaceAll('{{clinic}}', clinic);
 }
 
 /* ------------------------------- providers ------------------------------- */
