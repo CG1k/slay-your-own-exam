@@ -1643,7 +1643,7 @@ async function claudeExtract(text,onProg){
       'Keep the full vignette and lead-in together in "stem". Put every answer choice in its own option object, without its leading letter. Preserve blank lines between true paragraphs and newlines between lab/table rows. '+
       'Return exactly: {"questions":[{"sourcePage":1,"number":"<printed number or empty>","stem":"<verbatim vignette and lead-in>","options":[{"letter":"A","text":"<verbatim choice>"}],"correct":null,"explanation":""}]}\n\n'+
       'PDF TEXT:\n"""\n'+doc+'\n"""\nReturn only the JSON object.';
-    const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],32000);
+    const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],32000,NO_THINKING);
     done++;onProg&&onProg('Extracting questions … '+done+'/'+batches.length+' page groups done');
     const obj=parseJSON(resp);
     return (obj&&Array.isArray(obj.questions))?obj.questions:[];
@@ -1661,7 +1661,12 @@ function parseJSON(s){
 }
 
 /* ---- Anthropic API (direct browser) ---- */
-async function anthropic(model,system,messages,maxTokens=4096){
+/* Extraction is verbatim copying, not reasoning, so it asks for thinking off.
+   Newer models think by default and max_tokens caps thinking + answer together,
+   so a big ceiling would otherwise be spent reasoning — the request then runs
+   long enough that the browser drops it ("Load failed") instead of returning. */
+const NO_THINKING={thinking:{type:'disabled'}};
+async function anthropic(model,system,messages,maxTokens=4096,extra){
   /* retried: several vision batches run concurrently, so a single transient
      429/529 used to kill a whole extraction (and every figure with it) */
   const RETRIABLE=new Set([408,429,500,502,503,504,529]);
@@ -1678,7 +1683,7 @@ async function anthropic(model,system,messages,maxTokens=4096){
           'anthropic-version':'2023-06-01',
           'anthropic-dangerous-direct-browser-access':'true'
         },
-        body:JSON.stringify({model,max_tokens:maxTokens,system,messages})
+        body:JSON.stringify(Object.assign({model,max_tokens:maxTokens,system,messages},extra||{}))
       });
     }catch(netErr){lastErr=netErr;continue;} // network hiccup — retry
     if(!r.ok){
@@ -1802,7 +1807,7 @@ async function claudeVisionExtract(pdf,onProg){
     });
     let qs=[];
     try{
-      const resp=await anthropic(settings.extractModel,VISION_SYS,[{role:'user',content}],32000);
+      const resp=await anthropic(settings.extractModel,VISION_SYS,[{role:'user',content}],32000,NO_THINKING);
       const obj=parseJSON(resp);
       qs=(obj&&Array.isArray(obj.questions))?obj.questions:[];
     }catch(e){console.error('vision batch '+b.start+'-'+b.end,e);throw e;}
@@ -2039,7 +2044,7 @@ async function visionFilter(dataURLs,onProg){
     const content=[{type:'text',text:'For each image below, in order, decide if it is a MEDICAL image that would belong to an exam question — e.g. radiograph (x-ray/CT/MRI), ultrasound, ECG/EKG, histology or microscopy, gram stain, gross pathology, clinical/dermatology/fundus photo, or a medical diagram/figure. Logos, headers, footers, icons, watermarks, decorative graphics, or plain UI chrome are NOT medical. Reply with ONLY a JSON array of true/false, one per image, same order. Example: [true,false,true]'}];
     b.urls.forEach(u=>{const m=/^data:(.*?);base64,(.*)$/.exec(u);if(m)content.push({type:'image',source:{type:'base64',media_type:m[1],data:m[2]}});});
     try{
-      const resp=await anthropic(settings.extractModel,'You classify whether images are medical exam figures. Output JSON only.',[{role:'user',content}],4000);
+      const resp=await anthropic(settings.extractModel,'You classify whether images are medical exam figures. Output JSON only.',[{role:'user',content}],4000,NO_THINKING);
       const arr=parseJSON(resp);
       if(Array.isArray(arr))arr.forEach((v,i)=>{if(b.s+i<result.length)result[b.s+i]=!!v;});
     }catch(e){console.error('vision batch',e);/* keep defaults (true) on failure */}
