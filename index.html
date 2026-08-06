@@ -2206,13 +2206,33 @@ function renderStem(text){
     }
     return null;
   };
+  /* a bare lab name, no value on it — the PDF put the numbers on the next line */
+  const LABELISH=/^[A-Za-z][A-Za-z0-9+⁺⁻₀-₉\-().,/%µμ°\s]{1,44}$/;
   for(const line of lines){
     if(/^\s*$/.test(line)){flushProse();continue;}
     const trimmed=line.trim();
     if(trimmed.length<80&&labTrigger.test(trimmed)){flushProse();labBias=14;continue;} // the section header replaces this line
     if(subHeader.test(trimmed)){flushProse();labRows.push({header:true,cells:[trimmed.replace(/:$/,'')]});labBias=Math.max(labBias,10);continue;}
     const d=asData(line);
-    if(d){flushProse();labRows.push(d);continue;}
+    if(d){
+      /* Tall tables often come through as "Hematocrit (%)" on one line and
+         "39  32" on the next. Left alone that strands every row label up in the
+         prose and leaves a block of unlabelled numbers, so re-attach the label
+         to the values row it belongs to. */
+      /* Only when one label is pending (plus at most a column-header line). If a
+         whole stack of labels is waiting, the PDF gave us every name and then
+         every number, and there is no safe way to tell which value goes with
+         which — pairing there would put a confident wrong label on a lab value,
+         so those rows stay unlabelled instead. */
+      if(d.cells.length&&VALUE.test(d.cells[0])&&prose.length&&prose.length<=2){
+        const prev=prose[prose.length-1];
+        if(LABELISH.test(prev)&&!PROSEY.test(prev)&&!/[.?]$/.test(prev)){
+          prose.pop();
+          d.cells=[prev.replace(/:$/,'').trim()].concat(d.cells);
+        }
+      }
+      flushProse();labRows.push(d);continue;
+    }
     labBias=0;
     prose.push(trimmed);
   }
