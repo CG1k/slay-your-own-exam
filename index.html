@@ -1643,7 +1643,7 @@ async function claudeExtract(text,onProg){
       'Keep the full vignette and lead-in together in "stem". Put every answer choice in its own option object, without its leading letter. Preserve blank lines between true paragraphs and newlines between lab/table rows. '+
       'Return exactly: {"questions":[{"sourcePage":1,"number":"<printed number or empty>","stem":"<verbatim vignette and lead-in>","options":[{"letter":"A","text":"<verbatim choice>"}],"correct":null,"explanation":""}]}\n\n'+
       'PDF TEXT:\n"""\n'+doc+'\n"""\nReturn only the JSON object.';
-    const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],8000);
+    const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],32000);
     done++;onProg&&onProg('Extracting questions … '+done+'/'+batches.length+' page groups done');
     const obj=parseJSON(resp);
     return (obj&&Array.isArray(obj.questions))?obj.questions:[];
@@ -1802,7 +1802,7 @@ async function claudeVisionExtract(pdf,onProg){
     });
     let qs=[];
     try{
-      const resp=await anthropic(settings.extractModel,VISION_SYS,[{role:'user',content}],8000);
+      const resp=await anthropic(settings.extractModel,VISION_SYS,[{role:'user',content}],32000);
       const obj=parseJSON(resp);
       qs=(obj&&Array.isArray(obj.questions))?obj.questions:[];
     }catch(e){console.error('vision batch '+b.start+'-'+b.end,e);throw e;}
@@ -2039,7 +2039,7 @@ async function visionFilter(dataURLs,onProg){
     const content=[{type:'text',text:'For each image below, in order, decide if it is a MEDICAL image that would belong to an exam question — e.g. radiograph (x-ray/CT/MRI), ultrasound, ECG/EKG, histology or microscopy, gram stain, gross pathology, clinical/dermatology/fundus photo, or a medical diagram/figure. Logos, headers, footers, icons, watermarks, decorative graphics, or plain UI chrome are NOT medical. Reply with ONLY a JSON array of true/false, one per image, same order. Example: [true,false,true]'}];
     b.urls.forEach(u=>{const m=/^data:(.*?);base64,(.*)$/.exec(u);if(m)content.push({type:'image',source:{type:'base64',media_type:m[1],data:m[2]}});});
     try{
-      const resp=await anthropic(settings.extractModel,'You classify whether images are medical exam figures. Output JSON only.',[{role:'user',content}],400);
+      const resp=await anthropic(settings.extractModel,'You classify whether images are medical exam figures. Output JSON only.',[{role:'user',content}],4000);
       const arr=parseJSON(resp);
       if(Array.isArray(arr))arr.forEach((v,i)=>{if(b.s+i<result.length)result[b.s+i]=!!v;});
     }catch(e){console.error('vision batch',e);/* keep defaults (true) on failure */}
