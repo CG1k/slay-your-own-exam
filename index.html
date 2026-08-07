@@ -2208,6 +2208,29 @@ function renderStem(text){
   };
   /* a bare lab name, no value on it — the PDF put the numbers on the next line */
   const LABELISH=/^[A-Za-z][A-Za-z0-9+⁺⁻₀-₉\-().,/%µμ°\s]{1,44}$/;
+  /* Some PDFs put a whole panel on ONE line — "Na+ 143 mEq/L K+ 4.3 mEq/L …".
+     No line break means no row boundary, so the values ran on as prose and the
+     reader had to pick analytes out of a paragraph. Split a run of three or more
+     adjacent "<name> <value> <unit>" triples back into rows. Unit-anchored, so a
+     bare number in a sentence ("3 hours ago", "1- to 2-mm depression") is never
+     mistaken for a lab value. */
+  const LABUNIT='(?:mEq/L|mmol/L|mg/dL|g/dL|µg/dL|μg/dL|mcg/dL|ng/mL|pg/mL|U/L|IU/L|mOsm/kg|mL/min|mm Hg|mmHg|/mm3|/mm³|mm3|mm³|%)';
+  const INLINE=new RegExp('([A-Za-z][A-Za-z0-9+\\-–—()⁺⁻ .,’\']{0,32}?)\\s+([<>≤≥]?\\s*\\d[\\d.,]*)\\s*('+LABUNIT+')','g');
+  const splitInlineLabs=(t)=>{
+    INLINE.lastIndex=0;
+    const hits=[];let m,end=-1;
+    while((m=INLINE.exec(t))){
+      if(hits.length&&m.index-end>3)break; // a gap means prose resumed — the run ended
+      hits.push({i:m.index,label:m[1].trim(),value:(m[2]+' '+m[3]).replace(/\s+/g,' ').trim()});
+      end=INLINE.lastIndex;
+    }
+    if(hits.length<3)return null; // too few to be a panel; leave it as prose
+    let before=t.slice(0,hits[0].i).trim(),after=t.slice(end).trim();
+    const note=/^\((?:N\s?[<>≤≥=]|normal\b)[^)]*\)/i.exec(after); // "(N≤0.04)" belongs to the row before it
+    if(note){hits[hits.length-1].value+=' '+note[0];after=after.slice(note[0].length).trim();}
+    before=before.replace(/\s*\b[A-Za-z][A-Za-z ]{0,40}?(?:studies|results|values|findings|tests|panel)\s+(?:show|reveal|demonstrate|include)s?\s*:\s*$/i,'').trim();
+    return {before,after,rows:hits.map(h=>[h.label,h.value])};
+  };
   for(const line of lines){
     if(/^\s*$/.test(line)){flushProse();continue;}
     const trimmed=line.trim();
@@ -2232,6 +2255,14 @@ function renderStem(text){
         }
       }
       flushProse();labRows.push(d);continue;
+    }
+    const inl=splitInlineLabs(trimmed);
+    if(inl){
+      if(inl.before)prose.push(inl.before);
+      flushProse();
+      inl.rows.forEach(cells=>labRows.push({cells}));
+      if(inl.after)prose.push(inl.after);
+      labBias=0;continue;
     }
     labBias=0;
     prose.push(trimmed);
