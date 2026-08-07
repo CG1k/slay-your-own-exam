@@ -185,7 +185,18 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
 .timer.total{background:var(--soft);color:var(--muted);font-size:13.5px;border:1px solid var(--line)}
 .timer.total.low{background:var(--flag-wash);color:var(--flag);border-color:transparent}
 .timer.total.warn{background:var(--bad-wash);color:var(--bad);border-color:transparent}
+.timer.pace{font-size:13.5px;background:var(--soft);color:var(--muted);border:1px solid var(--line);min-width:0}
+.timer.pace.ahead{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);border-color:transparent}
+.timer.pace.behind{background:var(--bad-wash);color:var(--bad);border-color:transparent}
+#timer,#timerTotal,#timerPace{cursor:pointer}
 @media(max-width:700px){.timer.total{display:none}}
+/* clock reset menu — opens from any timer chip */
+.clockmenu{position:absolute;top:60px;right:12px;z-index:45;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;box-shadow:var(--shadow);padding:14px;width:min(360px,calc(100vw - 24px))}
+.clockmenu h4{margin:0 0 4px;font-size:14px}
+.clockmenu p{margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+.clockmenu .btn{display:block;width:100%;margin:0 0 8px;text-align:left}
+.clockmenu .btn:last-child{margin-bottom:0}
 /* square icon buttons — same size, same baseline, never two lines of text */
 .tool{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:10px;
   width:34px;height:34px;padding:0;flex:none;font-size:15px;line-height:1;position:relative;
@@ -563,9 +574,17 @@ h1,h2,h3,.h1,.brand,.hero-title,.sectit{letter-spacing:-.015em}
       <button class="tool" id="focusBtn" data-tip="Focus Lock">🔓</button>
       <button class="tool" id="attentionBtn" data-tip="Stay Awake monitor">👁</button>
       <button class="tool tipleft" id="pauseBtn" data-tip="Pause">⏸</button>
-      <span class="timer total" id="timerTotal" title="Time left for the whole block — 1:30 × number of questions">Block --:--</span>
-      <span class="timer" id="timer" title="Time left on this question">1:30</span>
+      <span class="timer pace hidden" id="timerPace" title="Pace vs. questions answered — click to reset the clock">--</span>
+      <span class="timer total" id="timerTotal" title="Time left for the whole block — 1:30 × number of questions. Click to reset the clock.">Block --:--</span>
+      <span class="timer" id="timer" title="Time left on this question. Click to reset the clock.">1:30</span>
       <div class="exprog" id="exProg"></div>
+      <div class="clockmenu hidden" id="clockMenu">
+        <h4>Reset the clock</h4>
+        <p id="clockMenuInfo"></p>
+        <button class="btn sm" id="clockSyncBtn"></button>
+        <button class="btn ghost sm" id="clockZeroBtn">Restart from zero — wipe all elapsed time</button>
+        <button class="btn ghost sm" id="clockCancelBtn">Cancel</button>
+      </div>
     </div>
 
     <div class="exmain">
@@ -737,6 +756,7 @@ const state = {
   startedAt:0,
   // live timer
   tStart:0, tPaused:true, tAccumMs:0, tPauseAccumMs:0, tPauseStart:0, raf:null,
+  blockAdjustMs:0,     // manual clock corrections (restart / sync-to-pace) — shifts the block clock without touching per-question stats
   reviewMode:false,    // results review uses exam screen read-only
   curSession:null
 };
@@ -1289,6 +1309,7 @@ function saveLiveState(){ // the small, fast-changing exam/progress state — wr
   bankTimer();
   const snap={liveId:state.liveId,screen:state.screen,mode:state.mode,order:state.order,cur:state.cur,
     attempts:state.attempts,startedAt:state.startedAt,reviewMode:state.reviewMode,
+    blockAdjustMs:state.blockAdjustMs||0,
     focusLock:focusArmed,attentionMonitor:attentionEnabled,savedAt:Date.now()};
   try{localStorage.setItem(LS.live,JSON.stringify(snap));}catch(e){}
   cloudSaveLiveSoon();
@@ -1324,6 +1345,7 @@ function tryResume(){
     state.liveId=s.liveId||uid();state.liveName=q.pdfName||'Untitled';if(s.focusLock)state._rearmFocus=true;
     if(s.attentionMonitor)state._rearmAttention=true;
     state.mode=s.mode||'test';state.startedAt=s.startedAt||Date.now();state.reviewMode=false;
+    state.blockAdjustMs=s.blockAdjustMs||0;
     showScreen('setup'); // land on the menu, UWorld-style — the resume card takes it from here
     toast('You have a test in progress — resume when ready');return true;
   }
@@ -2156,7 +2178,7 @@ function startTest(){
   state.reviewMode=false;
   state.attempts=all.map(()=>({selected:null,correctSelected:null,activeMs:0,pausedMs:0,visits:0,
     answerChanges:[],eliminated:[],flagged:false,expired:false,stemHTML:null,highlights:[],strikes:[],submitted:false}));
-  state.cur=0;state.startedAt=Date.now();
+  state.cur=0;state.startedAt=Date.now();state.blockAdjustMs=0;
   state.liveId=uid();state.liveName=state.pdfName||'Untitled';state.curSession=null;
   try{localStorage.removeItem(LS.last);}catch(e){}
   showScreen('exam');
@@ -2337,6 +2359,8 @@ function loadQuestion(i){
   renderSmartLabs(); // re-scan for this question's labs; shows itself only if it finds any
   // timer
   $('#timerTotal').classList.toggle('hidden',state.reviewMode);
+  $('#timerPace').classList.toggle('hidden',state.reviewMode);
+  closeClockMenu();
   if(!state.reviewMode){resetTimerDisplay();startTimer();}
   else{$('#timer').textContent=fmtTime(a.activeMs);}
   if(!state.reviewMode)saveLiveState();
@@ -2454,11 +2478,20 @@ function startTimer(){
   setToolIcon('#pauseBtn',ICONS.pause,'Pause');$('#timer').classList.remove('paused');
   tick();
 }
-function updateTotalTimer(curElapsed){ // block clock: 1:30 × questions, minus every second spent so far
-  const el=$('#timerTotal');if(!el||state.reviewMode||!state.order.length)return;
+function blockUsedMs(curElapsed){ // total time on the block clock: every banked second + the live question + manual corrections
   let used=0;
   state.order.forEach((qi,k)=>{ if(k===state.cur)return; const a=state.attempts[qi]; if(a)used+=(a.activeMs||0); });
   used+=curElapsed; // current question's live time isn't banked yet
+  used+=state.blockAdjustMs||0;
+  return Math.max(0,used);
+}
+function answeredCount(){
+  let n=0;state.order.forEach(qi=>{const a=state.attempts[qi];if(a&&a.selected)n++;});
+  return n;
+}
+function updateTotalTimer(curElapsed){ // block clock: 1:30 × questions, minus every second spent so far
+  const el=$('#timerTotal');if(!el||state.reviewMode||!state.order.length)return;
+  const used=blockUsedMs(curElapsed);
   const budget=TIMER_SECONDS*1000*state.order.length;
   const remain=budget-used;
   el.classList.remove('warn','low');
@@ -2468,6 +2501,20 @@ function updateTotalTimer(curElapsed){ // block clock: 1:30 × questions, minus 
   }else{
     el.textContent='Block +'+fmtTime(-remain);
     el.classList.add('warn');
+  }
+  updatePace(used);
+}
+function updatePace(used){ // ahead/behind schedule — judged ONLY by questions answered, never by which item is open
+  const el=$('#timerPace');if(!el)return;
+  const n=answeredCount();
+  const diff=used-n*TIMER_SECONDS*1000; // >0 → slower than 1:30 per answered question
+  el.classList.remove('behind','ahead');
+  if(diff>999){
+    el.textContent='▼ '+fmtTime(diff);el.classList.add('behind');
+    el.title='You are '+fmtTime(diff)+' behind pace ('+n+' answered × 1:30) — click to reset the clock';
+  }else{
+    el.textContent='▲ '+fmtTime(-diff);el.classList.add('ahead');
+    el.title='You are '+fmtTime(Math.max(0,-diff))+' ahead of pace ('+n+' answered × 1:30) — click to reset the clock';
   }
 }
 function tick(){
@@ -2509,6 +2556,46 @@ $('#pauseBtn').onclick=()=>{
   }
   saveLiveState();
 };
+
+/* ---- clock reset menu (click any timer chip) ---- */
+function closeClockMenu(){const m=$('#clockMenu');if(m)m.classList.add('hidden');}
+function openClockMenu(e){
+  if(state.reviewMode||!state.order.length)return;
+  e.stopPropagation();
+  const m=$('#clockMenu');
+  if(!m.classList.contains('hidden')){m.classList.add('hidden');return;}
+  const n=answeredCount(),target=n*TIMER_SECONDS*1000;
+  $('#clockMenuInfo').textContent='Forgot to pause? Either option also restarts this question’s 1:30. Only answered questions count — you have '+n+' answered.';
+  $('#clockSyncBtn').textContent='Sync to pace — as if you’d spent 1:30 on each ('+n+' answered → '+fmtTime(target)+' used)';
+  m.classList.remove('hidden');
+}
+function resetBlockClock(toPace){
+  const a=curA();
+  // the away time piled up on the open question — give it a fresh 1:30 either way
+  state.tAccumMs=0;a.activeMs=0;a.expired=false;a._autoAdv=false;
+  if(!state.tPaused)state.tStart=Date.now();
+  let banked=0;
+  state.order.forEach((qi,k)=>{ if(k===state.cur)return; const at=state.attempts[qi]; if(at)banked+=(at.activeMs||0); });
+  const n=answeredCount();
+  state.blockAdjustMs=(toPace?n*TIMER_SECONDS*1000:0)-banked;
+  if(state.tPaused){ // no rAF loop while paused — repaint the chips once by hand
+    $('#timer').textContent=fmtTime(TIMER_SECONDS*1000);
+    updateTotalTimer(0);
+  }
+  closeClockMenu();saveLiveState();
+  toast(toPace?('Clock synced to pace — '+fmtTime(n*TIMER_SECONDS*1000)+' on the books for '+n+' answered'):'Clock restarted from zero');
+}
+$('#timer').onclick=openClockMenu;
+$('#timerTotal').onclick=openClockMenu;
+$('#timerPace').onclick=openClockMenu;
+$('#clockSyncBtn').onclick=()=>resetBlockClock(true);
+$('#clockZeroBtn').onclick=()=>resetBlockClock(false);
+$('#clockCancelBtn').onclick=closeClockMenu;
+document.addEventListener('click',e=>{
+  const m=$('#clockMenu');
+  if(!m||m.classList.contains('hidden'))return;
+  if(!m.contains(e.target))m.classList.add('hidden');
+});
 
 /* ---- nav ---- */
 function renderNavMini(){
