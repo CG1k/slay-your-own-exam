@@ -1643,7 +1643,7 @@ async function claudeExtract(text,onProg){
       'Keep the full vignette and lead-in together in "stem". Put every answer choice in its own option object, without its leading letter. Preserve blank lines between true paragraphs and newlines between lab/table rows. '+
       'Return exactly: {"questions":[{"sourcePage":1,"number":"<printed number or empty>","stem":"<verbatim vignette and lead-in>","options":[{"letter":"A","text":"<verbatim choice>"}],"correct":null,"explanation":""}]}\n\n'+
       'PDF TEXT:\n"""\n'+doc+'\n"""\nReturn only the JSON object.';
-    const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],8000);
+    const resp=await anthropic(settings.extractModel,sys,[{role:'user',content:msg}],32000,NO_THINKING);
     done++;onProg&&onProg('Extracting questions … '+done+'/'+batches.length+' page groups done');
     const obj=parseJSON(resp);
     return (obj&&Array.isArray(obj.questions))?obj.questions:[];
@@ -1661,7 +1661,12 @@ function parseJSON(s){
 }
 
 /* ---- Anthropic API (direct browser) ---- */
-async function anthropic(model,system,messages,maxTokens=4096){
+/* Extraction is verbatim copying, not reasoning, so it asks for thinking off.
+   Newer models think by default and max_tokens caps thinking + answer together,
+   so a big ceiling would otherwise be spent reasoning — the request then runs
+   long enough that the browser drops it ("Load failed") instead of returning. */
+const NO_THINKING={thinking:{type:'disabled'}};
+async function anthropic(model,system,messages,maxTokens=4096,extra){
   /* retried: several vision batches run concurrently, so a single transient
      429/529 used to kill a whole extraction (and every figure with it) */
   const RETRIABLE=new Set([408,429,500,502,503,504,529]);
@@ -1678,7 +1683,7 @@ async function anthropic(model,system,messages,maxTokens=4096){
           'anthropic-version':'2023-06-01',
           'anthropic-dangerous-direct-browser-access':'true'
         },
-        body:JSON.stringify({model,max_tokens:maxTokens,system,messages})
+        body:JSON.stringify(Object.assign({model,max_tokens:maxTokens,system,messages},extra||{}))
       });
     }catch(netErr){lastErr=netErr;continue;} // network hiccup — retry
     if(!r.ok){
@@ -1802,7 +1807,7 @@ async function claudeVisionExtract(pdf,onProg){
     });
     let qs=[];
     try{
-      const resp=await anthropic(settings.extractModel,VISION_SYS,[{role:'user',content}],8000);
+      const resp=await anthropic(settings.extractModel,VISION_SYS,[{role:'user',content}],32000,NO_THINKING);
       const obj=parseJSON(resp);
       qs=(obj&&Array.isArray(obj.questions))?obj.questions:[];
     }catch(e){console.error('vision batch '+b.start+'-'+b.end,e);throw e;}
@@ -2039,7 +2044,7 @@ async function visionFilter(dataURLs,onProg){
     const content=[{type:'text',text:'For each image below, in order, decide if it is a MEDICAL image that would belong to an exam question — e.g. radiograph (x-ray/CT/MRI), ultrasound, ECG/EKG, histology or microscopy, gram stain, gross pathology, clinical/dermatology/fundus photo, or a medical diagram/figure. Logos, headers, footers, icons, watermarks, decorative graphics, or plain UI chrome are NOT medical. Reply with ONLY a JSON array of true/false, one per image, same order. Example: [true,false,true]'}];
     b.urls.forEach(u=>{const m=/^data:(.*?);base64,(.*)$/.exec(u);if(m)content.push({type:'image',source:{type:'base64',media_type:m[1],data:m[2]}});});
     try{
-      const resp=await anthropic(settings.extractModel,'You classify whether images are medical exam figures. Output JSON only.',[{role:'user',content}],400);
+      const resp=await anthropic(settings.extractModel,'You classify whether images are medical exam figures. Output JSON only.',[{role:'user',content}],4000,NO_THINKING);
       const arr=parseJSON(resp);
       if(Array.isArray(arr))arr.forEach((v,i)=>{if(b.s+i<result.length)result[b.s+i]=!!v;});
     }catch(e){console.error('vision batch',e);/* keep defaults (true) on failure */}
@@ -2201,13 +2206,64 @@ function renderStem(text){
     }
     return null;
   };
+  /* a bare lab name, no value on it — the PDF put the numbers on the next line */
+  const LABELISH=/^[A-Za-z][A-Za-z0-9+⁺⁻₀-₉\-().,/%µμ°\s]{1,44}$/;
+  /* Some PDFs put a whole panel on ONE line — "Na+ 143 mEq/L K+ 4.3 mEq/L …".
+     No line break means no row boundary, so the values ran on as prose and the
+     reader had to pick analytes out of a paragraph. Split a run of three or more
+     adjacent "<name> <value> <unit>" triples back into rows. Unit-anchored, so a
+     bare number in a sentence ("3 hours ago", "1- to 2-mm depression") is never
+     mistaken for a lab value. */
+  const LABUNIT='(?:mEq/L|mmol/L|mg/dL|g/dL|µg/dL|μg/dL|mcg/dL|ng/mL|pg/mL|U/L|IU/L|mOsm/kg|mL/min|mm Hg|mmHg|/mm3|/mm³|mm3|mm³|%)';
+  const INLINE=new RegExp('([A-Za-z][A-Za-z0-9+\\-–—()⁺⁻ .,’\']{0,32}?)\\s+([<>≤≥]?\\s*\\d[\\d.,]*)\\s*('+LABUNIT+')','g');
+  const splitInlineLabs=(t)=>{
+    INLINE.lastIndex=0;
+    const hits=[];let m,end=-1;
+    while((m=INLINE.exec(t))){
+      if(hits.length&&m.index-end>3)break; // a gap means prose resumed — the run ended
+      hits.push({i:m.index,label:m[1].trim(),value:(m[2]+' '+m[3]).replace(/\s+/g,' ').trim()});
+      end=INLINE.lastIndex;
+    }
+    if(hits.length<3)return null; // too few to be a panel; leave it as prose
+    let before=t.slice(0,hits[0].i).trim(),after=t.slice(end).trim();
+    const note=/^\((?:N\s?[<>≤≥=]|normal\b)[^)]*\)/i.exec(after); // "(N≤0.04)" belongs to the row before it
+    if(note){hits[hits.length-1].value+=' '+note[0];after=after.slice(note[0].length).trim();}
+    before=before.replace(/\s*\b[A-Za-z][A-Za-z ]{0,40}?(?:studies|results|values|findings|tests|panel)\s+(?:show|reveal|demonstrate|include)s?\s*:\s*$/i,'').trim();
+    return {before,after,rows:hits.map(h=>[h.label,h.value])};
+  };
   for(const line of lines){
     if(/^\s*$/.test(line)){flushProse();continue;}
     const trimmed=line.trim();
     if(trimmed.length<80&&labTrigger.test(trimmed)){flushProse();labBias=14;continue;} // the section header replaces this line
     if(subHeader.test(trimmed)){flushProse();labRows.push({header:true,cells:[trimmed.replace(/:$/,'')]});labBias=Math.max(labBias,10);continue;}
     const d=asData(line);
-    if(d){flushProse();labRows.push(d);continue;}
+    if(d){
+      /* Tall tables often come through as "Hematocrit (%)" on one line and
+         "39  32" on the next. Left alone that strands every row label up in the
+         prose and leaves a block of unlabelled numbers, so re-attach the label
+         to the values row it belongs to. */
+      /* Only when one label is pending (plus at most a column-header line). If a
+         whole stack of labels is waiting, the PDF gave us every name and then
+         every number, and there is no safe way to tell which value goes with
+         which — pairing there would put a confident wrong label on a lab value,
+         so those rows stay unlabelled instead. */
+      if(d.cells.length&&VALUE.test(d.cells[0])&&prose.length&&prose.length<=2){
+        const prev=prose[prose.length-1];
+        if(LABELISH.test(prev)&&!PROSEY.test(prev)&&!/[.?]$/.test(prev)){
+          prose.pop();
+          d.cells=[prev.replace(/:$/,'').trim()].concat(d.cells);
+        }
+      }
+      flushProse();labRows.push(d);continue;
+    }
+    const inl=splitInlineLabs(trimmed);
+    if(inl){
+      if(inl.before)prose.push(inl.before);
+      flushProse();
+      inl.rows.forEach(cells=>labRows.push({cells}));
+      if(inl.after)prose.push(inl.after);
+      labBias=0;continue;
+    }
     labBias=0;
     prose.push(trimmed);
   }
