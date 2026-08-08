@@ -148,7 +148,7 @@ body.examing #navAdmin,body.examing #navHistory,body.examing #authBtn{display:no
 .labside-head b{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--ink);
   padding:4px 12px;border-radius:99px;background:var(--glass);border:1px solid var(--glassline);
   -webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);opacity:.85}
-.labside-body{overflow:auto;position:relative;padding:14px 4px 18px;scrollbar-width:none;
+.labside-body{overflow:auto;position:relative;flex:1 1 auto;min-height:0;padding:14px 4px 18px;scrollbar-width:none;
   -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 26px,#000 calc(100% - 26px),transparent 100%);
   mask-image:linear-gradient(to bottom,transparent 0,#000 26px,#000 calc(100% - 26px),transparent 100%)}
 .labside-body::-webkit-scrollbar{display:none}
@@ -2257,6 +2257,9 @@ function renderStem(text){
     if(/^\s*$/.test(line)){flushProse();continue;}
     const trimmed=line.trim();
     if(trimmed.length<80&&labTrigger.test(trimmed)){flushProse();labBias=14;continue;} // the section header replaces this line
+    // a prose sentence that ENDS in "… Laboratory studies show:" — keep the prose, arm the bias
+    const mTail=/^(.*[.!?])\s+((?:laboratory|lab)\s+(?:studies|results|values|findings|tests|data)\b[^.:?]{0,40}?:)\s*$/i.exec(trimmed);
+    if(mTail){prose.push(mTail[1]);flushProse();labBias=14;continue;}
     if(subHeader.test(trimmed)){flushProse();labRows.push({header:true,cells:[trimmed.replace(/:$/,'')]});labBias=Math.max(labBias,10);continue;}
     const d=asData(line);
     if(d){
