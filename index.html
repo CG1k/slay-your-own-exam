@@ -2212,7 +2212,7 @@ function renderStem(text){
   const flushProse=()=>{ if(prose.length){paras.push(prose.join(' ').replace(/\s+/g,' ').trim());prose=[];} };
   const subHeader=/^(serum|urine|urinalysis|plasma|blood|arterial blood gas(?:es)?( \(room air\))?|csf|cerebrospinal fluid|hematolog(?:y|ic)|chemistr(?:y|ies)|coagulation( studies)?)\s*:?\s*$/i;
   const labTrigger=/\blab(?:oratory)?\s+(studies|results|values|findings|tests|data|evaluation)\b[^?]*?(show|reveal|demonstrate|include|are as follows|following|:)?\s*:?\s*$/i;
-  const VALUE=/^([<>≤≥]?\s?\d[\d.,]*(\s?[–—-]\s?[<>]?\d[\d.,]*)?(\s?(×|x)\s?10[⁰¹²³⁴⁵⁶⁷⁸⁹\d]*)?\s*([A-Za-zµμ%°/][A-Za-z0-9µμ%°/·^\-\s³²]*)?|\d+:\d+.*|(positive|negative|trace|normal|elevated|decreased|present|absent|reddish|cloudy|clear|turbid|within normal limits).*)$/i;
+  const VALUE=/^([<>≤≥]?\s?\d[\d.,]*\+?(\s?[–—-]\s?[<>]?\d[\d.,]*\+?)?(\s?(×|x)\s?10[⁰¹²³⁴⁵⁶⁷⁸⁹\d]*)?\s*([A-Za-zµμ%°/][A-Za-z0-9µμ%°/·^\-\s³²]*)?(\s?\([^()]*\))?|\d+:\d+.*|(positive|negative|trace|normal|elevated|decreased|present|absent|reddish|cloudy|clear|turbid|none|within normal limits).*)$/i;
   const PROSEY=/\b(is|are|was|were|the|an|and|for|with|of|at|to|in|on|by|he|she|her|his|had|has|comes|presents|denies|reports|note[ds]?|show[ns]?|which|what|following|because|after|before|during)\b/i;
   const asData=(line)=>{
     const t=line.replace(/^\s+/,'');const indent=line.length-t.length>0;
@@ -2222,7 +2222,7 @@ function renderStem(text){
     // rows where spacing collapsed to one space (e.g. 'Hemoglobin 10.2 g/dL')
     const max=labBias?76:48;
     if(t.length<=max){
-      const m=/^([A-Za-z][A-Za-z0-9+⁺⁻₀-₉\-().,/% ]{1,36}?)\s+([<>≤≥]?\s?\d.*|positive|negative|trace|normal|within normal limits|1:\d+.*)$/i.exec(t);
+      const m=/^([A-Za-zµμβ][A-Za-z0-9+⁺⁻₀-₉\-−–—().,/%µμβ° ]{1,44}?)\s+([<>≤≥]?\s?\d.*|positive|negative|trace|normal|none|within normal limits|1:\d+.*)$/i.exec(t);
       if(m && !PROSEY.test(m[1]) && VALUE.test(m[2].trim()))
         return {cells:[m[1].trim(),m[2].trim()],indent};
     }
@@ -2243,6 +2243,9 @@ function renderStem(text){
     const hits=[];let m,end=-1;
     while((m=INLINE.exec(t))){
       if(hits.length&&m.index-end>3)break; // a gap means prose resumed — the run ended
+      // a "label" with sentence words in it ("specificity of the test is 90%")
+      // is prose wearing a number, not a lab row — never chop it into cells
+      if(PROSEY.test(m[1])){if(hits.length)break;INLINE.lastIndex=m.index+1;continue;}
       hits.push({i:m.index,label:m[1].trim(),value:(m[2]+' '+m[3]).replace(/\s+/g,' ').trim()});
       end=INLINE.lastIndex;
     }
@@ -2253,13 +2256,78 @@ function renderStem(text){
     before=before.replace(/\s*\b[A-Za-z][A-Za-z ]{0,40}?(?:studies|results|values|findings|tests|panel)\s+(?:show|reveal|demonstrate|include)s?\s*:\s*$/i,'').trim();
     return {before,after,rows:hits.map(h=>[h.label,h.value])};
   };
-  for(const line of lines){
+  /* Split rows: some extractions put the test NAME on one line and its VALUE on
+     the NEXT ("Hemoglobin" / "14.2 g/dL"). Neither line alone looks like a lab
+     row, so both used to fall through to prose and the whole panel re-flowed
+     into a sentence. scanRun walks such a run and pairs the lines back into
+     rows; a bare name whose sub-rows follow ("Bilirubin" over Total / Direct)
+     becomes a bold group header. */
+  const NAMEISH=t=>t.length<=60&&/^[A-Za-zµμβ][A-Za-z0-9+⁺⁻₀-₉\-−–—().,/%µμβ°'’ ]*$/.test(t)&&!PROSEY.test(t)&&!VALUE.test(t);
+  const valCells=t=>{
+    const cells=t.split(/\s{2,}/).map(s=>s.trim()).filter(Boolean);
+    return cells.length&&cells.every(c=>VALUE.test(c))?cells:null;
+  };
+  const scanRun=(start)=>{
+    const rows=[];let i=start,pairs=0,goodLen=0,goodEnd=start;
+    while(i<lines.length){
+      const t=lines[i].trim();if(!t)break;
+      if(NAMEISH(t)){
+        const nt=i+1<lines.length?lines[i+1].trim():'';
+        const vc=nt?valCells(nt):null;
+        if(vc){rows.push({cells:[t].concat(vc)});pairs++;i+=2;goodLen=rows.length;goodEnd=i;continue;}
+        const n2=i+2<lines.length?lines[i+2].trim():'';
+        if(nt&&n2&&NAMEISH(nt)&&valCells(n2)){rows.push({header:true,cells:[t.replace(/:$/,'')]});i++;continue;}
+        break;
+      }
+      if(subHeader.test(t)){rows.push({header:true,cells:[t.replace(/:$/,'')]});i++;continue;}
+      break;
+    }
+    if(!pairs)return null;
+    // anything consumed after the last real pair (a stray trailing header) is
+    // handed back to the normal line loop instead of being swallowed
+    return {rows:rows.slice(0,goodLen),end:goodEnd,pairs};
+  };
+  /* "Arterial blood gas analysis on room air shows:" — a panel header the
+     subHeader list can't match; keep it as a bold row over its pH/Pco2 rows */
+  const gasHead=/^((?:arterial|venous) blood gas[^.?]{0,40}?)(?:\s+(?:shows?|showed|shown|reveals?|revealed))?\s*:\s*$/i;
+  /* a trigger clause that is PURE boilerplate can be dropped (the "Laboratory
+     values" heading replaces it); one carrying real information ("Laboratory
+     studies 1 week ago showed:") must stay in the prose verbatim */
+  const STRICTTRIG=/^(?:results? of\s+)?lab(?:oratory)?\s+(?:studies|results|values|findings|tests|data|evaluation)(?:\s+are)?(?:\s+(?:shows?|showed|shown|reveals?|revealed|demonstrates?|include[ds]?|obtained))?(?:\s+as follows)?(?:\s+the following)?\s*:?$/i;
+  for(let li=0;li<lines.length;li++){
+    const line=lines[li];
     if(/^\s*$/.test(line)){flushProse();continue;}
     const trimmed=line.trim();
-    if(trimmed.length<80&&labTrigger.test(trimmed)){flushProse();labBias=14;continue;} // the section header replaces this line
+    if(trimmed.length<80&&labTrigger.test(trimmed)){
+      flushProse();
+      if(!STRICTTRIG.test(trimmed)){prose.push(trimmed);flushProse();} // boilerplate is replaced by the section header; anything more stays
+      labBias=14;continue;
+    }
     // a prose sentence that ENDS in "… Laboratory studies show:" — keep the prose, arm the bias
-    const mTail=/^(.*[.!?])\s+((?:laboratory|lab)\s+(?:studies|results|values|findings|tests|data)\b[^.:?]{0,40}?:)\s*$/i.exec(trimmed);
-    if(mTail){prose.push(mTail[1]);flushProse();labBias=14;continue;}
+    const mTail=/^(.*[.!?])\s+([^.!?]{0,60}?\blab(?:oratory)?\s+(?:studies|results|values|findings|tests|data)\b[^.:?]{0,40}?:)\s*$/i.exec(trimmed);
+    if(mTail){prose.push(STRICTTRIG.test(mTail[2])?mTail[1]:trimmed);flushProse();labBias=14;continue;}
+    // column headers over a multi-column panel ("Before Treatment   After Treatment")
+    // — only just after a lab trigger, and only when real data sits right below
+    if(labBias>0){
+      const chc=trimmed.split(/\s{2,}/).map(s=>s.trim()).filter(Boolean);
+      if(chc.length>=2&&chc.every(c=>c.length<=30&&/^[A-Za-z][A-Za-z0-9 ()/%°–—-]*$/.test(c)&&!VALUE.test(c))){
+        const nt=li+1<lines.length?lines[li+1].trim():'';
+        const nn=li+2<lines.length?lines[li+2].trim():'';
+        if((nt&&asData(nt))||(nt&&nn&&valCells(nn))){
+          flushProse();labRows.push({colhead:true,cells:chc});continue;
+        }
+      }
+    }
+    // split name/value rows — commit a run only when it's clearly a lab panel:
+    // inside an armed lab section, or 3+ consecutive pairs on its own
+    const run=scanRun(li);
+    if(run&&(run.pairs>=3||labBias>0||(labRows.length&&!prose.length))){
+      flushProse();
+      run.rows.forEach(r=>labRows.push(r));
+      li=run.end-1;continue;
+    }
+    const mGas=gasHead.exec(trimmed);
+    if(mGas){flushProse();labRows.push({header:true,cells:[mGas[1].trim()]});labBias=Math.max(labBias,10);continue;}
     if(subHeader.test(trimmed)){flushProse();labRows.push({header:true,cells:[trimmed.replace(/:$/,'')]});labBias=Math.max(labBias,10);continue;}
     const d=asData(line);
     if(d){
