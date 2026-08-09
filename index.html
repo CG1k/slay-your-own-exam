@@ -2407,6 +2407,22 @@ function toggleElim(letter){
   renderOptions(curQ(),a);saveLiveState();
 }
 
+/* ---- answer keys on the keyboard ----
+   Pressing a choice's letter (A–E…) selects it, through the same selectOpt path
+   as clicking the row. Live exam screen only: never in review, never with a
+   modal up, never while typing in a field, and never with a modifier held so
+   browser shortcuts like Cmd+A keep working. */
+document.addEventListener('keydown',e=>{
+  if(state.screen!=='exam'||state.reviewMode)return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  const t=e.target;
+  if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable))return;
+  if($('#modalRoot').innerHTML)return;
+  const q=curQ();if(!q)return;
+  const L=e.key.length===1?e.key.toUpperCase():'';
+  if(L&&q.options.some(o=>o.letter===L)){e.preventDefault();selectOpt(L);}
+});
+
 /* ---- marking the stem: highlight only, no cross-out ----
    select text            → highlight
    double-click a word    → highlight that word
