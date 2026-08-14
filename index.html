@@ -3503,10 +3503,11 @@ function endTest(){
   disarmFocusLock(true);
   stopAttentionMonitor(true);
   stopTimer(true);
-  // finalize correctness for all
+  // finalize correctness for all — recompute rather than only filling blanks, because
+  // a reopened test can come back with answers that changed since it was last ended
   state.questions.forEach((q,i)=>{
     const a=state.attempts[i];
-    if(a.correctSelected===null&&q.correct&&a.selected)a.correctSelected=(a.selected===q.correct);
+    if(a&&q.correct&&a.selected)a.correctSelected=(a.selected===q.correct);
   });
   const session=buildSession();
   state.curSession=session;
@@ -3518,29 +3519,48 @@ function endTest(){
   renderResults(session);
   showScreen('results');
 }
+/* stemHTML is the saved highlight markup — the bulky part of a session. Dropping it
+   costs only the repainted marks on Resume, so it is what gets sacrificed first when
+   localStorage is full, ahead of throwing away whole tests. */
+function stripStemHTML(s){
+  if(!s||!Array.isArray(s.attempts))return s;
+  return Object.assign({},s,{attempts:s.attempts.map(a=>Object.assign({},a,{stemHTML:null}))});
+}
+function writeSessions(arr){localStorage.setItem(LS.sessions,JSON.stringify(arr));}
 function saveSessionSafe(session){
   // History keeps stats/answers/marks but not heavy image bytes, so it can't fill storage
   const lean=leanSession(session);
   let all=loadJSON(LS.sessions,[]).filter(x=>x.id!==lean.id); // replaces its own in-progress save
   all.unshift(lean);all=all.slice(0,40);
-  try{localStorage.setItem(LS.sessions,JSON.stringify(all));}
+  try{writeSessions(all);}
   catch(e){
-    try{localStorage.setItem(LS.sessions,JSON.stringify(all.slice(0,10)));}
-    catch(e2){toast('History storage is full.');}
+    // keep the marks on the newest test, shed them from older ones
+    const trimmed=all.map((s,i)=>i===0?s:stripStemHTML(s));
+    try{writeSessions(trimmed);}
+    catch(e2){
+      try{writeSessions(trimmed.slice(0,10));}
+      catch(e3){toast('History storage is full.');}
+    }
   }
   cloudSaveSession(lean);
 }
 function buildSession(){
+  // re-ending a reopened test overwrites its own History row, so keep the original date
+  const prev=state.liveId?loadJSON(LS.sessions,[]).find(x=>x.id===state.liveId):null;
   return {
-    id:state.liveId||uid(), name:state.liveName||state.pdfName||'Untitled', createdAt:Date.now(),
-    mode:state.mode, timerSeconds:TIMER_SECONDS,
+    id:state.liveId||uid(), name:state.liveName||state.pdfName||'Untitled',
+    createdAt:(prev&&prev.createdAt)||Date.now(),
+    status:'done', completedAt:Date.now(),
+    mode:state.mode, timerSeconds:TIMER_SECONDS, options:collectOptions(),
     questions:state.questions.map(q=>({id:q.id,number:q.number,stem:q.stem,options:q.options,correct:q.correct,explanation:q.explanation,images:q.images||[]})),
-    order:state.order.slice(),
+    order:state.order.slice(), cur:state.cur,
     attempts:state.attempts.map(a=>({
       selected:a.selected, correctSelected:a.correctSelected,
       activeMs:Math.round(a.activeMs), pausedMs:Math.round(a.pausedMs||0),
       visits:a.visits, answerChanges:a.answerChanges, eliminated:a.eliminated,
-      flagged:a.flagged, expired:a.expired, highlights:a.highlights, strikes:a.strikes
+      flagged:a.flagged, expired:a.expired, highlights:a.highlights, strikes:a.strikes,
+      // carried so Resume can repaint the marks and restore tutor-mode reveals
+      stemHTML:a.stemHTML, submitted:!!a.submitted
     }))
   };
 }
@@ -3693,9 +3713,18 @@ function mdToHtml(md){
 function stashLiveToHistory(){
   if(!liveTestActive())return;
   bankTimer();
+  const prev=loadJSON(LS.sessions,[]).find(x=>x.id===state.liveId);
+  // a reopened finished test stays "finished" in History even if it is parked
+  // mid-edit — walking away from it must never look like the score was lost
+  const wasDone=!!(prev&&prev.status==='done');
+  if(wasDone)state.questions.forEach((q,i)=>{
+    const a=state.attempts[i];
+    if(a&&q.correct&&a.selected)a.correctSelected=(a.selected===q.correct);
+  });
   const lean={
-    id:state.liveId, status:'inprogress', name:state.liveName||state.pdfName||'Untitled',
-    createdAt:state.startedAt||Date.now(), savedAt:Date.now(),
+    id:state.liveId, status:wasDone?'done':'inprogress', name:state.liveName||state.pdfName||'Untitled',
+    createdAt:(prev&&prev.createdAt)||state.startedAt||Date.now(), savedAt:Date.now(),
+    completedAt:wasDone?prev.completedAt:undefined,
     mode:state.mode, timerSeconds:TIMER_SECONDS, options:collectOptions(),
     questions:state.questions.map(q=>({id:q.id,number:q.number,stem:q.stem,options:q.options,correct:q.correct,explanation:q.explanation,images:[],hadImage:!!(q.images&&q.images.length)})),
     order:state.order.slice(), cur:state.cur,
@@ -3703,7 +3732,11 @@ function stashLiveToHistory(){
   };
   let all=loadJSON(LS.sessions,[]).filter(x=>x.id!==lean.id);
   all.unshift(lean);all=all.slice(0,40);
-  try{localStorage.setItem(LS.sessions,JSON.stringify(all));}catch(e){}
+  try{writeSessions(all);}
+  catch(e){
+    const trimmed=all.map((s,i)=>i===0?s:stripStemHTML(s));
+    try{writeSessions(trimmed);}catch(e2){try{writeSessions(trimmed.slice(0,10));}catch(e3){}}
+  }
   cloudSaveSession(lean);
 }
 /* Pick an archived in-progress test back up exactly where it was left */
@@ -3722,6 +3755,33 @@ function resumeInProgressSession(id){
   showScreen('exam');loadQuestion(state.cur);
   idbImagesLoad(state.questions).then(got=>{if(got)refreshImagesOnScreen();}); // figures come back from the vault
   toast('Resumed — everything is exactly as you left it');
+}
+/* Reopen a FINISHED test and keep working on it. Every answer, highlight, strike,
+   cross-out, flag and per-question time comes back exactly as it was left; ending it
+   again overwrites the same History row instead of creating a second one.
+   Distinct from Redo, which reloads the same questions with a blank slate. */
+function resumeFinishedSession(id){
+  const s=loadJSON(LS.sessions,[]).find(x=>x.id===id);if(!s)return;
+  if(state.liveId&&state.liveId!==s.id)stashLiveToHistory(); // park the current one first
+  state.questions=s.questions.map((q,i)=>({id:q.id||uid(),idx:i,number:q.number,stem:q.stem,options:q.options,correct:q.correct,explanation:q.explanation,images:[]}));
+  state.pdfName=s.name||'Untitled';state.liveName=s.name||'Untitled';applyOptions(s.options);
+  state.order=(s.order||[]).slice();
+  // fill defaults: tests finished before this feature existed have no stemHTML/submitted,
+  // and renderOptions would throw on a missing eliminated[]
+  state.attempts=(s.attempts||[]).map(a=>Object.assign({
+    selected:null,correctSelected:null,activeMs:0,pausedMs:0,visits:0,answerChanges:[],
+    eliminated:[],flagged:false,expired:false,stemHTML:null,highlights:[],strikes:[],submitted:false
+  },a));
+  state.cur=Math.min(s.cur||0,Math.max(0,state.order.length-1));
+  state.mode=s.mode||'test';state.startedAt=s.createdAt||Date.now();state.reviewMode=false;
+  state.liveId=s.id;state.curSession=null;
+  if(s.options&&s.options.focusLock)state._rearmFocus=true;
+  saveLiveQ();
+  returnScreen=null;
+  showScreen('exam');loadQuestion(state.cur);
+  saveLiveState(); // only writes from the exam screen, so it has to come after showScreen
+  idbImagesLoad(state.questions).then(got=>{if(got)refreshImagesOnScreen();}); // figures come back from the vault
+  toast('Reopened — your answers and highlights are exactly as you left them');
 }
 function sessionProgress(s){ // answered count for an in-progress save
   const N=(s.order||[]).length;let answered=0;
@@ -3762,7 +3822,8 @@ function renderHistory(){
     const N=(s.order||[]).length;let c=0,g=0;(s.order||[]).forEach(qi=>{const a=s.attempts[qi],q=s.questions[qi];if(q&&q.correct){g++;if(a&&a.correctSelected)c++;}});
     return `<div class="card pad" style="margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:180px"><b>${esc(s.name)}</b><div class="note">${d.toLocaleString()} · ${N} items · ${g?Math.round(100*c/g)+'%':'ungraded'} · ${esc(s.mode||'')}${s.analysis?' · analyzed':''}</div></div>
-      <button class="btn sm" data-redo="${esc(s.id)}">Redo</button>
+      <button class="btn sm" data-reopen="${esc(s.id)}" title="Go back into this test with your answers, highlights and cross-outs still on it">Resume</button>
+      <button class="btn ghost sm" data-redo="${esc(s.id)}" title="Same questions, blank slate">Redo</button>
       <button class="btn ghost sm" data-open="${esc(s.id)}">Open</button>
       <button class="btn ghost sm" data-del="${esc(s.id)}">Delete</button>
     </div>`;
@@ -3771,6 +3832,7 @@ function renderHistory(){
   const lr=$('#histResumeLive');
   if(lr)lr.onclick=()=>{returnScreen=null;showScreen('exam');loadQuestion(state.cur);};
   box.querySelectorAll('[data-resume]').forEach(b=>b.onclick=()=>resumeInProgressSession(b.dataset.resume));
+  box.querySelectorAll('[data-reopen]').forEach(b=>b.onclick=()=>resumeFinishedSession(b.dataset.reopen));
   box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openSession(b.dataset.open));
   box.querySelectorAll('[data-redo]').forEach(b=>b.onclick=()=>redoSession(b.dataset.redo));
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
