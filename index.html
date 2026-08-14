@@ -2696,6 +2696,35 @@ $('#navToggle').onclick=()=>{
 function nextQuestion(){if(state.cur<state.order.length-1)loadQuestion(state.cur+1);else if(!state.reviewMode)endTest();}
 $('#nextBtn').onclick=nextQuestion;
 $('#prevBtn').onclick=()=>{if(state.cur>0)loadQuestion(state.cur-1);};
+/* ---- keyboard: ← → move between questions, letter keys pick that choice ----
+   Arrow Right stops at the last item instead of calling nextQuestion(), because
+   that one ends the block — a stray keypress must never submit the test. */
+document.addEventListener('keydown',e=>{
+  if(state.screen!=='exam')return;
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  const t=e.target;
+  if(t&&(t.isContentEditable||(t.matches&&t.matches('input,textarea,select'))))return;
+  const np=$('#navPanel'),cm=$('#clockMenu');
+  if(np&&!np.classList.contains('hidden'))return;
+  if(cm&&!cm.classList.contains('hidden'))return;
+  if(!state.order||!state.order.length)return;
+  if(e.key==='ArrowRight'){
+    if(state.cur<state.order.length-1){e.preventDefault();loadQuestion(state.cur+1);}
+    return;
+  }
+  if(e.key==='ArrowLeft'){
+    if(state.cur>0){e.preventDefault();loadQuestion(state.cur-1);}
+    return;
+  }
+  if(state.reviewMode)return;            // reviewing: arrows navigate, answers stay locked
+  if(e.key.length!==1)return;
+  const q=curQ();if(!q||!q.options)return;
+  const k=e.key.toUpperCase();
+  const opt=q.options.find(o=>String(o.letter).toUpperCase()===k);
+  if(!opt)return;
+  e.preventDefault();
+  selectOpt(opt.letter);
+});
 function doSuspend(){ // UWorld-style: back to the menu with everything saved; resume any time
   suspendLiveTest();
   showScreen('setup');
