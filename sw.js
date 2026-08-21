@@ -5,6 +5,7 @@ const SHELL = [
   './index.html',
   './flashcards.html',
   './study-buddy.html',
+  './remote.html',
   './master-lock.js',
   './alarm.m4a',
   './manifest.webmanifest',

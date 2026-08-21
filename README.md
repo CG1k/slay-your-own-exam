@@ -18,6 +18,7 @@ Everything runs **in your browser**. Your PDFs are never uploaded anywhere. By d
 - **Higher-fidelity PDF extraction** — page-aware text reconstruction preserves paragraphs, answer choices, lab rows, and page boundaries; Claude batches overlap at page boundaries without duplicating questions; repeated page furniture and malformed choices are cleaned before review.
 - **Clean lab panels** — lab values are pulled out of the vignette into their own "Laboratory values" section between the story and the question, instead of being jumbled through the stem.
 - **AI tutoring** — after a block, get targeted, high-yield feedback based on your answers, timing, what you highlighted, and what you crossed out (uses your own Anthropic API key, entered in Settings).
+- **Phone remote (optional, needs accounts)** — open `remote.html` on your phone, sign in with the same account, and control the test running on your computer: see live progress and the block clock, pause/resume, move between items, flag, jump to a number, or suspend. The remote deliberately can't answer questions or end the test. Runs over your account's private Firestore doc (`remote/{uid}`).
 - **Accounts (optional)** — sign up / log in to sync every saved test, and every in-progress answer, highlight, and cross-out, to your account in real time so you can pick up on another device. One designated admin account can see every account's saved tests. Off by default; see [Set up accounts](#set-up-accounts-optional) below.
 
 ## Run it locally
@@ -54,11 +55,14 @@ This needs a free [Firebase](https://firebase.google.com) project (Google's back
        match /liveState/{uid} {
          allow read, write: if request.auth != null && request.auth.uid == uid;
        }
+       match /remote/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
      }
    }
    ```
 
-   `sessions` holds finished tests: private to their owner, except the admin email, which can read (and moderate) everyone's. `liveState` holds each account's *in-progress* test (every highlight, answer, and cross-out, saved continuously) so it can resume on another device — private to the owner only, one document per account.
+   `sessions` holds finished tests (already-configured projects: just add the `remote/{uid}` block and re-publish — it powers the phone remote): private to their owner, except the admin email, which can read (and moderate) everyone's. `liveState` holds each account's *in-progress* test (every highlight, answer, and cross-out, saved continuously) so it can resume on another device — private to the owner only, one document per account.
 
 5. In the left sidebar: **Project settings (gear icon) → General → Your apps → Add app → Web (`</>`)**. Register the app (no need for Firebase Hosting). Copy the `firebaseConfig` object it shows you.
 6. Open `index.html`, find the block that starts with `const firebaseConfig={` (search for `PASTE_YOUR`), and replace the six placeholder strings with the real values from step 5.
