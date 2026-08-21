@@ -1,0 +1,435 @@
+/* Two looks in one sheet: a plain patient portal for her, and a plain console
+   for you. The portal should read as unremarkable. */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Must outrank every display rule below. Without this, a class that sets
+   display (.log is flex) beats the UA rule for [hidden] and hidden views
+   render anyway. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  color: #1c1f23;
+  background: #f4f6f8;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: #1f6a5c;
+  color: #fff;
+  padding: 11px 18px;
+}
+
+button:hover {
+  filter: brightness(1.06);
+}
+
+.ghost-btn {
+  background: #fff;
+  color: #33393f;
+  border-color: #c9d1d8;
+}
+
+.danger-btn {
+  background: #b3271e;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #c3cad2;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+}
+
+textarea {
+  resize: none;
+}
+
+label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.error {
+  color: #b3271e;
+  font-size: 0.9rem;
+}
+
+.hint {
+  color: #5d666f;
+  font-size: 0.85rem;
+  margin: 6px 0 0;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* ----------------------------- patient portal ---------------------------- */
+
+.portal-body {
+  background: #f2f5f4;
+}
+
+.portal-shell {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 22px 18px 48px;
+}
+
+.portal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  border-bottom: 1px solid #dfe6e4;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+}
+
+.clinic-mark {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #1f6a5c;
+  font-weight: 700;
+}
+
+.portal-head h1 {
+  margin: 4px 0 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.portal-card {
+  background: #fff;
+  border: 1px solid #dfe6e4;
+  border-radius: 12px;
+  padding: 26px;
+  max-width: 400px;
+  margin: 60px auto 0;
+}
+
+.portal-card h1 {
+  margin: 8px 0 0;
+  font-size: 1.25rem;
+}
+
+.portal-card button {
+  margin-top: 18px;
+  width: 100%;
+}
+
+.welcome {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.portal-sub {
+  color: #5d666f;
+  margin: 4px 0 20px;
+  font-size: 0.92rem;
+}
+
+.tiles {
+  display: grid;
+  gap: 12px;
+}
+
+.tile {
+  position: relative;
+  display: block;
+  text-align: left;
+  background: #fff;
+  color: inherit;
+  border: 1px solid #dfe6e4;
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.tile:hover {
+  border-color: #1f6a5c;
+  filter: none;
+}
+
+.tile-title {
+  display: block;
+  font-weight: 600;
+  font-size: 1.02rem;
+}
+
+.tile-sub {
+  display: block;
+  color: #5d666f;
+  font-size: 0.86rem;
+  margin-top: 2px;
+}
+
+.tile-badge {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: #1f6a5c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 32, 30, 0.45);
+}
+
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 26px 24px 22px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+}
+
+.modal h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  color: #1f6a5c;
+}
+
+.modal p {
+  margin: 0 0 12px;
+  line-height: 1.55;
+}
+
+.modal button {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.view h2 {
+  font-size: 1.12rem;
+  margin: 14px 0 4px;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: #1f6a5c;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.notice {
+  background: #fff;
+  border: 1px solid #dfe6e4;
+  border-left: 4px solid #c9a227;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 14px 0 18px;
+}
+
+.notice p {
+  margin: 0 0 8px;
+}
+
+.notice p:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------- chat ---------------------------------- */
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 16px;
+  margin: 14px 0;
+  min-height: 200px;
+  max-height: 52vh;
+  background: #fff;
+  border: 1px solid #dfe6e4;
+  border-radius: 12px;
+}
+
+.bubble {
+  max-width: 78%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: #eef1f4;
+}
+
+.bubble.mine {
+  align-self: flex-end;
+  background: #1f6a5c;
+  color: #fff;
+}
+
+.bubble.theirs {
+  align-self: flex-start;
+}
+
+.bubble-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bubble-time {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.65;
+  margin-top: 3px;
+}
+
+.send {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.fineprint {
+  color: #5d666f;
+  font-size: 0.78rem;
+  margin: 12px 0 0;
+}
+
+kbd {
+  border: 1px solid #c3cad2;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 0.75rem;
+}
+
+/* ------------------------------- console --------------------------------- */
+
+.console {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 18px 60px;
+}
+
+.console-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.console-head h1 {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e4e8ec;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+.panel h1,
+.panel h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.panel form button[type='submit'] {
+  margin-top: 16px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+.checkbox-row label {
+  margin: 0;
+  font-weight: 500;
+}
+
+.preview {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  background: #f5f7f9;
+  border: 1px solid #e4e8ec;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  margin-top: 16px;
+  border-top: 1px solid #e4e8ec;
+  padding-top: 12px;
+}
+
+.status-row {
+  display: flex;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 0.88rem;
+}
+
+.status-key {
+  color: #5d666f;
+  min-width: 170px;
+}
+
+.status-val {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+@media (max-width: 480px) {
+  .status-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .status-key {
+    min-width: 0;
+  }
+  .portal-card {
+    margin-top: 24px;
+  }
+}

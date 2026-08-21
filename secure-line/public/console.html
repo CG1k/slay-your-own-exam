@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="console-body">
+    <!-- Your side. Passcode-gated and never linked from anywhere. -->
+    <main class="console">
+      <section id="login-view" class="panel">
+        <h1>Sign in</h1>
+        <form id="login-form" autocomplete="off">
+          <label for="passcode">Console passcode</label>
+          <input id="passcode" type="password" autocomplete="current-password" />
+          <button type="submit">Sign in</button>
+        </form>
+        <p id="login-error" class="error" hidden></p>
+      </section>
+
+      <section id="app-view" hidden>
+        <header class="console-head">
+          <h1>Portal console</h1>
+          <button id="logout" class="ghost-btn" type="button">Sign out</button>
+        </header>
+
+        <div class="panel">
+          <h2>1. Set up the portal</h2>
+          <p class="hint">
+            Saving here builds a brand new link. The old link stops working
+            immediately and anyone signed in with it is signed out.
+          </p>
+
+          <form id="setup-form" autocomplete="off">
+            <label for="pageTitle">Page title — put your secret word in here</label>
+            <input id="pageTitle" type="text" placeholder="e.g. Patient Portal — Bluebird" />
+            <p class="hint">
+              This is the browser tab title and the heading she sees. It is how
+              she knows the portal is from you.
+            </p>
+
+            <label for="displayName">Greet her as</label>
+            <input id="displayName" type="text" placeholder="The name she should see after Welcome," />
+
+            <label for="clinicName">Clinic name shown on the page</label>
+            <input id="clinicName" type="text" value="Chase Your Health" />
+            <p class="hint">
+              Use a made-up name. Do not use a real clinic's name. This is also
+              what <code>{{clinic}}</code> fills in when you write the text.
+            </p>
+
+            <label for="providerName">Provider name shown in the message thread</label>
+            <input id="providerName" type="text" value="Dr. Gordon" placeholder="Dr. Gordon" />
+
+            <label for="securityQuestion">Security question shown after she taps the link</label>
+            <input id="securityQuestion" type="text" value="What is Dr. Gordon's first name?" />
+            <p class="hint">
+              This follows the provider name above until you type your own
+              wording, after which it's left alone.
+            </p>
+
+            <label for="answer">Answer</label>
+            <input id="answer" type="text" value="Chase" />
+            <p class="hint">
+              Capitals don't matter — CHASE, chase, and Chase all work, and
+              spaces around it are ignored. Leave the answer blank if you'd
+              rather the link sign her in with no question at all.
+            </p>
+
+            <label for="noticeTitle">Notice she sees right after signing in — heading</label>
+            <input id="noticeTitle" type="text" value="Important" />
+
+            <label for="noticeBody">Notice text</label>
+            <textarea id="noticeBody" rows="4">Your safety, your comfort and health is my number one priority.
+We will get there together at the pace you need.</textarea>
+            <p class="hint">
+              One paragraph per line. Leave this empty for no notice at all.
+            </p>
+
+            <label for="purgeAfterMinutes">Delete messages after (minutes, 0 = keep)</label>
+            <input id="purgeAfterMinutes" type="number" min="0" max="43200" value="0" />
+
+            <label for="expiresDays">Link stops working after (days)</label>
+            <input id="expiresDays" type="number" min="1" max="365" value="30" />
+
+            <button type="submit">Save and build the link</button>
+          </form>
+
+          <p id="setup-error" class="error" hidden></p>
+          <div id="status" class="status" hidden></div>
+        </div>
+
+        <div class="panel">
+          <h2>2. Send her the link</h2>
+          <p class="hint">
+            The text goes out from this site's own number, not your phone. Your
+            number is never shown to her or to anyone reading her phone.
+          </p>
+
+          <label for="channel">Send it with</label>
+          <select id="channel"></select>
+          <p id="channel-note" class="hint"></p>
+
+          <label for="preset">Start from</label>
+          <select id="preset"></select>
+
+          <label for="notice-body">Message text — edit this however you want</label>
+          <textarea id="notice-body" rows="3"></textarea>
+          <p class="hint">
+            Placeholders: <code>{{link}}</code> her link,
+            <code>{{name}}</code> the name you greet her by,
+            <code>{{clinic}}</code> the clinic name. Anything else is sent
+            literally.
+          </p>
+          <p class="hint">
+            Whatever you write here can be read off a lock screen by whoever
+            else picks up the phone. Nothing about the real situation belongs in
+            it — that lives behind the link.
+          </p>
+
+          <label for="to">Her number (+15551234567)</label>
+          <input id="to" type="tel" placeholder="+15551234567" autocomplete="off" />
+
+          <div class="row">
+            <button id="send-sms" type="button">Send it</button>
+            <button id="preview-btn" class="ghost-btn" type="button">Preview</button>
+            <button id="copy-link" class="ghost-btn" type="button">Copy link only</button>
+          </div>
+          <pre id="preview-box" class="preview" hidden></pre>
+          <p id="notify-note" class="hint"></p>
+          <p id="notify-error" class="error" hidden></p>
+        </div>
+
+        <div class="panel">
+          <h2>3. Talk</h2>
+          <p class="hint">
+            This is what she sees under "Speak with your provider". Appointment
+            requests she submits land here too.
+          </p>
+          <div id="log" class="log" aria-live="polite"></div>
+          <form id="send-form" class="send" autocomplete="off">
+            <textarea id="send-input" rows="1" placeholder="Message"></textarea>
+            <button type="submit">Send</button>
+          </form>
+          <div class="row">
+            <button id="wipe" class="ghost-btn" type="button">Clear messages</button>
+            <button id="destroy" class="danger-btn" type="button">Shut the portal down</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/console.js" type="module"></script>
+  </body>
+</html>
